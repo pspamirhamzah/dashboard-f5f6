@@ -91,14 +91,12 @@
             // Filter States
             const [filterProv, setFilterProv] = useState("All");
             const [filterKab, setFilterKab] = useState("All");
-            const [filterKec, setFilterKec] = useState("All");
             const [filterProd, setFilterProd] = useState("All");
-            const [filterProdusen, setFilterProdusen] = useState("All");
             const [filterDistributor, setFilterDistributor] = useState("All");
 
             // LIST METRIC STATES
             const [metricWilayah, setMetricWilayah] = useState("Penyaluran");
-            const [metricProdusen, setMetricProdusen] = useState("Penyaluran");
+            const [metricDistributor, setMetricDistributor] = useState("Penyaluran");
 
             // Fungsi untuk parsing angka format Indonesia (1.000,75 menjadi float 1000.75)
             const parseIndonesianNumber = (val) => {
@@ -156,9 +154,7 @@
                         // Reset filters on new upload
                         setFilterProv("All");
                         setFilterKab("All");
-                        setFilterKec("All");
                         setFilterProd("All");
-                        setFilterProdusen("All");
                         setFilterDistributor("All");
                     }
                 });
@@ -174,21 +170,15 @@
                 if (filterKab !== "All") {
                     temp = temp.filter(d => d.Kabupaten === filterKab);
                 }
-                if (filterKec !== "All") {
-                    temp = temp.filter(d => d.Kecamatan === filterKec);
-                }
                 if (filterProd !== "All") {
                     temp = temp.filter(d => d.Produk === filterProd);
-                }
-                if (filterProdusen !== "All") {
-                    temp = temp.filter(d => d.Produsen === filterProdusen);
                 }
                 if (filterDistributor !== "All") {
                     temp = temp.filter(d => d.Nama_Distributor === filterDistributor);
                 }
 
                 setFilteredData(temp);
-            }, [filterProv, filterKab, filterKec, filterProd, filterProdusen, filterDistributor, rawData]);
+            }, [filterProv, filterKab, filterProd, filterDistributor, rawData]);
 
             // Aggregations
             const kpi = useMemo(() => {
@@ -233,18 +223,18 @@
                     .slice(0, 10); 
             }, [filteredData, metricWilayah]);
 
-            // Aggregation for Top Produsen
-            const produsenData = useMemo(() => {
+            // Aggregation for Top Distributor
+            const distributorData = useMemo(() => {
                 const grouped = {};
                 filteredData.forEach(d => {
-                    if (!grouped[d.Produsen]) grouped[d.Produsen] = 0;
-                    grouped[d.Produsen] += d[metricProdusen];
+                    if (!grouped[d.Nama_Distributor]) grouped[d.Nama_Distributor] = 0;
+                    grouped[d.Nama_Distributor] += d[metricDistributor];
                 });
                 return Object.entries(grouped)
                     .map(([name, value]) => ({ name, value }))
                     .sort((a,b) => b.value - a.value)
                     .slice(0, 10); 
-            }, [filteredData, metricProdusen]);
+            }, [filteredData, metricDistributor]);
 
             // Cek apakah data yang aktif saat ini punya kolom Pengecer (F6) - Menggunakan rawData agar stabil
             const isDataF6 = useMemo(() => {
@@ -261,16 +251,7 @@
                 return [...new Set(options.map(d => d.Kabupaten))].filter(Boolean).sort();
             }, [rawData, filterProv]);
 
-            // Generate Kecamatan berdasarkan Kabupaten dan Provinsi yang dipilih
-            const uniqueKecamatan = useMemo(() => {
-                let options = rawData;
-                if (filterProv !== "All") options = options.filter(d => d.Provinsi === filterProv);
-                if (filterKab !== "All") options = options.filter(d => d.Kabupaten === filterKab);
-                return [...new Set(options.map(d => d.Kecamatan))].filter(Boolean).sort();
-            }, [rawData, filterProv, filterKab]);
-
             const uniqueProducts = useMemo(() => [...new Set(rawData.map(d => d.Produk))].filter(Boolean).sort(), [rawData]);
-            const uniqueProdusen = useMemo(() => [...new Set(rawData.map(d => d.Produsen))].filter(Boolean).sort(), [rawData]);
             const uniqueDistributors = useMemo(() => [...new Set(rawData.map(d => d.Nama_Distributor))].filter(Boolean).sort(), [rawData]);
 
             const formatNumber = (num) => new Intl.NumberFormat('id-ID', { maximumFractionDigits: 2 }).format(num);
@@ -314,26 +295,8 @@
                             <div className="bg-gray-100 p-1.5 rounded-md"><IconFilter /></div>
                             <span>Filter Data Interaktif</span>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                             
-                            {/* Filter Produsen */}
-                            <div>
-                                <label className="block text-xs font-bold text-blue-700 mb-1.5 uppercase tracking-wide">Produsen</label>
-                                <div className="relative">
-                                    <select 
-                                        className="w-full appearance-none bg-blue-50 border border-blue-200 text-blue-900 text-sm font-medium rounded-lg p-3 pr-8 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition cursor-pointer hover:bg-blue-100"
-                                        value={filterProdusen} 
-                                        onChange={(e) => setFilterProdusen(e.target.value)}
-                                    >
-                                        <option value="All">Semua Produsen</option>
-                                        {uniqueProdusen.map(p => <option key={p} value={p}>{p}</option>)}
-                                    </select>
-                                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-blue-600">
-                                        <IconChevronDown />
-                                    </div>
-                                </div>
-                            </div>
-
                             {/* Filter Provinsi */}
                             <div>
                                 <label className="block text-xs font-bold text-teal-700 mb-1.5 uppercase tracking-wide">Provinsi</label>
@@ -344,7 +307,6 @@
                                         onChange={(e) => {
                                             setFilterProv(e.target.value);
                                             setFilterKab("All"); // Reset Kabupaten saat Provinsi berubah
-                                            setFilterKec("All"); // Reset Kecamatan saat Provinsi berubah
                                         }}
                                     >
                                         <option value="All">Semua Provinsi</option>
@@ -365,31 +327,12 @@
                                         value={filterKab} 
                                         onChange={(e) => {
                                             setFilterKab(e.target.value);
-                                            setFilterKec("All"); // Reset Kecamatan saat Kabupaten berubah
                                         }}
                                     >
                                         <option value="All">Semua Kabupaten</option>
                                         {uniqueKabupaten.map(p => <option key={p} value={p}>{p}</option>)}
                                     </select>
                                     <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-cyan-600">
-                                        <IconChevronDown />
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Filter Kecamatan */}
-                            <div>
-                                <label className="block text-xs font-bold text-fuchsia-700 mb-1.5 uppercase tracking-wide">Kecamatan</label>
-                                <div className="relative">
-                                    <select 
-                                        className="w-full appearance-none bg-fuchsia-50 border border-fuchsia-200 text-fuchsia-900 text-sm font-medium rounded-lg p-3 pr-8 focus:ring-2 focus:ring-fuchsia-500 focus:border-fuchsia-500 outline-none transition cursor-pointer hover:bg-fuchsia-100"
-                                        value={filterKec} 
-                                        onChange={(e) => setFilterKec(e.target.value)}
-                                    >
-                                        <option value="All">Semua Kecamatan</option>
-                                        {uniqueKecamatan.map(p => <option key={p} value={p}>{p}</option>)}
-                                    </select>
-                                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-fuchsia-600">
                                         <IconChevronDown />
                                     </div>
                                 </div>
@@ -597,18 +540,18 @@
                             </div>
                         </div>
 
-                        {/* List Top Produsen */}
+                        {/* List Top Distributor */}
                         <div className="bg-white p-6 rounded-xl card-shadow flex flex-col h-full">
                             <div className="flex justify-between items-center mb-4">
                                 <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
                                     <span className="w-1 h-6 bg-emerald-500 rounded-full"></span>
-                                    Top Produsen
+                                    Top Distributor
                                 </h3>
-                                {/* Filter Toggle untuk Produsen */}
+                                {/* Filter Toggle untuk Distributor */}
                                 <select 
                                     className="text-xs border border-gray-300 rounded-lg px-2 py-1 bg-gray-50 text-gray-600 focus:outline-none focus:border-emerald-500 font-medium cursor-pointer"
-                                    value={metricProdusen}
-                                    onChange={(e) => setMetricProdusen(e.target.value)}
+                                    value={metricDistributor}
+                                    onChange={(e) => setMetricDistributor(e.target.value)}
                                 >
                                     <option value="Penyaluran">Penyaluran</option>
                                     <option value="Penebusan">Penebusan</option>
@@ -616,11 +559,11 @@
                             </div>
 
                             <div className="flex-grow overflow-y-auto custom-scrollbar pr-2 max-h-80">
-                                {produsenData.length === 0 ? (
+                                {distributorData.length === 0 ? (
                                     <div className="text-center text-gray-400 py-10">Tidak ada data</div>
                                 ) : (
                                     <ul className="space-y-3">
-                                        {produsenData.map((item, index) => (
+                                        {distributorData.map((item, index) => (
                                             <li key={index} className="flex items-center justify-between p-3 rounded-lg bg-emerald-50/50 hover:bg-emerald-50 transition">
                                                 <div className="flex items-center gap-3">
                                                     <span className={`flex justify-center items-center w-6 h-6 rounded-full text-xs font-bold ${index < 3 ? 'bg-emerald-600 text-white' : 'bg-gray-200 text-gray-600'}`}>
