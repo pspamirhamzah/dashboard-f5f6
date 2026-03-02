@@ -44,34 +44,6 @@
             AreaChart, Area, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer 
         } = window.Recharts || {};
 
-        // --- Mock Data ---
-        const MOCK_DATA = [
-            { Produsen: "PT Pupuk Sriwidjaja", Nama_Distributor: "CV. SARI KARYA BERSAMA", Nama_Pengecer: "", Bulan: 1, Provinsi: "JAMBI", Kabupaten: "KOTA JAMBI", Kecamatan: "TELANAIPURA", Produk: "UREA", Stok_Awal: 10, Penebusan: 225, Penyaluran: 220, Stok_Akhir: 15 },
-            { Produsen: "PT Pupuk Sriwidjaja", Nama_Distributor: "CV. SARI KARYA BERSAMA", Nama_Pengecer: "", Bulan: 1, Provinsi: "JAMBI", Kabupaten: "KOTA JAMBI", Kecamatan: "TELANAIPURA", Produk: "NPK", Stok_Awal: 5, Penebusan: 100, Penyaluran: 80, Stok_Akhir: 25 },
-            { Produsen: "PT Petrokimia Gresik", Nama_Distributor: "PT. ANAK GRESIK RAYA", Nama_Pengecer: "", Bulan: 2, Provinsi: "JAWA TIMUR", Kabupaten: "KAB. GRESIK", Kecamatan: "MANYAR", Produk: "UREA", Stok_Awal: 50, Penebusan: 500, Penyaluran: 480, Stok_Akhir: 70 },
-            { Produsen: "PT Petrokimia Gresik", Nama_Distributor: "PT. ANAK GRESIK RAYA", Nama_Pengecer: "", Bulan: 2, Provinsi: "JAWA TIMUR", Kabupaten: "KAB. GRESIK", Kecamatan: "MANYAR", Produk: "ZA", Stok_Awal: 20, Penebusan: 150, Penyaluran: 140, Stok_Akhir: 30 },
-            { Produsen: "PT Pupuk Kujang", Nama_Distributor: "CV. TANI MAKMUR", Nama_Pengecer: "", Bulan: 3, Provinsi: "LAMPUNG", Kabupaten: "KAB. LAMPUNG SELATAN", Kecamatan: "KALIANDA", Produk: "SP-36", Stok_Awal: 15, Penebusan: 200, Penyaluran: 210, Stok_Akhir: 5 },
-            { Produsen: "PT Pupuk Kujang", Nama_Distributor: "CV. TANI MAKMUR", Nama_Pengecer: "", Bulan: 3, Provinsi: "LAMPUNG", Kabupaten: "KAB. LAMPUNG SELATAN", Kecamatan: "KALIANDA", Produk: "UREA", Stok_Awal: 100, Penebusan: 600, Penyaluran: 650, Stok_Akhir: 50 },
-        ];
-
-        // Generate additional mock data
-        for(let i=4; i<=12; i++) {
-            MOCK_DATA.push({
-                Produsen: i % 2 === 0 ? "PT Pupuk Sriwidjaja" : "PT Pupuk Kaltim",
-                Nama_Distributor: "MOCK DISTRIBUTOR " + i,
-                Nama_Pengecer: "MOCK PENGECER " + i,
-                Bulan: i,
-                Provinsi: i % 2 === 0 ? "JAWA TIMUR" : "KALIMANTAN TIMUR",
-                Kabupaten: i % 2 === 0 ? "KAB. MALANG" : "KOTA BONTANG",
-                Kecamatan: i % 2 === 0 ? "KARANG PLOSO" : "BONTANG UTARA",
-                Produk: i % 3 === 0 ? "NPK" : "UREA",
-                Stok_Awal: 50,
-                Penebusan: Math.floor(Math.random() * 500) + 100,
-                Penyaluran: Math.floor(Math.random() * 500) + 100,
-                Stok_Akhir: 50
-            });
-        }
-
         const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
         const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Ags", "Sep", "Okt", "Nov", "Des"];
 
@@ -85,8 +57,9 @@
         const IconChevronDown = () => <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>;
 
         const App = () => {
-            const [rawData, setRawData] = useState(MOCK_DATA);
-            const [filteredData, setFilteredData] = useState(MOCK_DATA);
+            // State awal dibuat kosong (array kosong)
+            const [rawData, setRawData] = useState([]);
+            const [filteredData, setFilteredData] = useState([]);
 
             // Filter States
             const [filterProv, setFilterProv] = useState("All");
@@ -269,8 +242,42 @@
                 return tickItem.toLocaleString('id-ID');
             };
 
+            // --- TAMPILAN AWAL SEBELUM UPLOAD FILE (EMPTY STATE) ---
+            if (rawData.length === 0) {
+                return (
+                    <div className="min-h-screen flex flex-col items-center justify-center p-6 relative overflow-hidden">
+                        {/* Background Decoration */}
+                        <div className="absolute top-0 left-0 w-full h-96 bg-blue-600 rounded-b-[100px] opacity-10 -z-10"></div>
+                        
+                        <div className="bg-white p-10 rounded-3xl shadow-2xl max-w-lg w-full text-center border-t-8 border-blue-600 relative z-10 transform transition-all hover:-translate-y-1">
+                            <div className="w-24 h-24 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                            </div>
+                            <h2 className="text-3xl font-extrabold text-gray-800 mb-3">Selamat Datang</h2>
+                            <p className="text-gray-500 mb-8 leading-relaxed">Silakan unggah file data <strong className="text-blue-600">F5</strong> atau <strong className="text-blue-600">F6</strong> Anda untuk mulai menampilkan visualisasi dashboard analitik.</p>
+                            
+                            <label className="cursor-pointer inline-flex bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-xl items-center gap-3 transition-all shadow-lg shadow-blue-200 group">
+                                <span className="font-semibold text-lg tracking-wide">Pilih File CSV</span>
+                                <input type="file" accept=".csv" onChange={handleFileUpload} className="hidden" />
+                            </label>
+                            
+                            <p className="mt-8 text-xs text-gray-400 font-medium bg-gray-50 py-2 rounded-lg">
+                                Pastikan file menggunakan format (.csv)
+                            </p>
+                        </div>
+
+                        {/* Footer on Empty State */}
+                        <footer className="text-center mt-12 text-sm text-gray-500 font-medium">
+                            <p>Copyright &copy; 2025 Adm Pemasaran & Penjualan</p>
+                            <p className="mt-1">Design by 00.0034</p>
+                        </footer>
+                    </div>
+                );
+            }
+
+            // --- TAMPILAN DASHBOARD SETELAH UPLOAD FILE ---
             return (
-                <div className="min-h-screen p-6">
+                <div className="min-h-screen p-6 relative">
                     {/* Header */}
                     <div className="flex flex-col md:flex-row justify-between items-center mb-8 bg-white p-6 rounded-xl card-shadow border-l-4 border-blue-600">
                         <div>
@@ -586,54 +593,11 @@
                         </div>
                     </div>
 
-                    {/* Detail Transaksi Table (Full Width at Bottom) */}
-                    <div className="bg-white p-6 rounded-xl card-shadow overflow-hidden flex flex-col mb-8">
-                         <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                            <span className="w-1 h-6 bg-gray-500 rounded-full"></span>
-                            Detail Transaksi
-                        </h3>
-                        <div className="overflow-x-auto custom-scrollbar flex-grow border rounded-lg border-gray-100">
-                            <table className="min-w-full divide-y divide-gray-200">
-                                <thead className="bg-gray-50 sticky top-0 z-10">
-                                    <tr>
-                                        <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Produsen</th>
-                                        <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Distributor</th>
-                                        {/* Tampilkan kolom Pengecer hanya jika data adalah F6 */}
-                                        {isDataF6 && <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Pengecer</th>}
-                                        <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Provinsi</th>
-                                        <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Kabupaten</th>
-                                        <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Kecamatan</th>
-                                        <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Produk</th>
-                                        <th className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Penebusan</th>
-                                        <th className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Penyaluran</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="bg-white divide-y divide-gray-200">
-                                    {filteredData.slice(0, 50).map((row, idx) => (
-                                        <tr key={idx} className="hover:bg-blue-50 transition-colors">
-                                            <td className="px-6 py-3.5 whitespace-nowrap text-sm text-gray-600">{row.Produsen}</td>
-                                            <td className="px-6 py-3.5 whitespace-nowrap text-sm font-medium text-gray-800 truncate max-w-[200px]" title={row.Nama_Distributor}>{row.Nama_Distributor}</td>
-                                            {/* Data Pengecer dari F6 */}
-                                            {isDataF6 && <td className="px-6 py-3.5 whitespace-nowrap text-sm text-gray-600 truncate max-w-[200px]" title={row.Nama_Pengecer}>{row.Nama_Pengecer || "-"}</td>}
-                                            <td className="px-6 py-3.5 whitespace-nowrap text-sm text-gray-500">{row.Provinsi}</td>
-                                            <td className="px-6 py-3.5 whitespace-nowrap text-sm text-gray-500">{row.Kabupaten}</td>
-                                            <td className="px-6 py-3.5 whitespace-nowrap text-sm text-gray-500">{row.Kecamatan}</td>
-                                            <td className="px-6 py-3.5 whitespace-nowrap text-sm text-gray-500">
-                                                <span className={`px-2.5 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full ${row.Produk === 'UREA' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}`}>
-                                                    {row.Produk}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-3.5 whitespace-nowrap text-sm text-gray-500 text-right font-mono">{formatNumber(row.Penebusan)}</td>
-                                            <td className="px-6 py-3.5 whitespace-nowrap text-sm text-gray-500 text-right font-mono font-bold text-blue-600">{formatNumber(row.Penyaluran)}</td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                         <div className="mt-4 text-center text-xs font-medium text-gray-400">
-                                {filteredData.length > 50 ? `Menampilkan 50 data teratas dari total ${filteredData.length} data` : `Menampilkan ${filteredData.length} data`}
-                        </div>
-                    </div>
+                    {/* Footer */}
+                    <footer className="text-center mt-12 mb-4 text-sm text-gray-500 font-medium">
+                        <p>Copyright &copy; 2025 Adm Pemasaran & Penjualan</p>
+                        <p className="mt-1">Design by 00.0034</p>
+                    </footer>
                 </div>
             );
         };
