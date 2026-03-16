@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard F5/F6 - Clean Dark Mode</title>
+    <title>Dashboard F5/F6 - Light/Dark Mode</title>
     
     <!-- React & ReactDOM (v18) -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -12,8 +12,13 @@
     <!-- Babel (untuk JSX) -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     
-    <!-- Tailwind CSS -->
+    <!-- Tailwind CSS (Konfigurasi Mode Gelap Berdasarkan Class) -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+        }
+    </script>
 
     <!-- Prop Types -->
     <script src="https://unpkg.com/prop-types@15.8.1/prop-types.min.js"></script>
@@ -32,58 +37,42 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
         
-        /* Gemini-like Dark Mode Palette */
         body { 
             font-family: 'Inter', sans-serif; 
-            background-color: #131314; /* Gemini Main Background */
-            color: #e3e3e3; 
+            transition: background-color 0.3s ease, color 0.3s ease;
         } 
         
-        /* Flat Cards - No Borders, No Shadows */
-        .card-flat { 
-            background-color: #1e1f20; /* Gemini Surface Background */
-            border-radius: 1rem;
-        }
+        /* Tema Gelap (Gemini) pada Elemen HTML/Body */
+        html.dark body { background-color: #131314; color: #e3e3e3; }
+        html:not(.dark) body { background-color: #f8fafc; color: #1e293b; }
 
-        /* Flat Inputs & Items */
-        .input-flat {
-            background-color: #282a2c;
-            color: #e3e3e3;
-            border: none;
-            outline: none;
-        }
-        .input-flat:hover, .input-flat:focus {
-            background-color: #333538;
-        }
-
-        .list-item-flat {
-            background-color: #282a2c;
-            border: none;
-        }
-        .list-item-flat:hover {
-            background-color: #333538;
-        }
-        
-        /* Custom scrollbar */
+        /* Custom scrollbar untuk kedua mode */
         .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
         @media (min-width: 640px) { .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; } }
-        .custom-scrollbar::-webkit-scrollbar-track { background: #131314; border-radius: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #444746; border-radius: 4px; } 
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #5f6368; } 
         
-        /* Animations */
+        /* Scrollbar Mode Terang */
+        html:not(.dark) .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 4px; }
+        html:not(.dark) .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; } 
+        html:not(.dark) .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; } 
+
+        /* Scrollbar Mode Gelap */
+        html.dark .custom-scrollbar::-webkit-scrollbar-track { background: #131314; border-radius: 4px; }
+        html.dark .custom-scrollbar::-webkit-scrollbar-thumb { background: #444746; border-radius: 4px; } 
+        html.dark .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #5f6368; } 
+
+        /* Warna Dropdown Options */
+        html.dark option { background-color: #1e1f20; color: #e3e3e3; }
+        html:not(.dark) option { background-color: #ffffff; color: #1e293b; }
+        
+        /* Animasi */
         @keyframes fadeInUp {
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
         }
-        .animate-fade-in-up {
-            animation: fadeInUp 0.4s ease-out forwards;
-        }
-
-        option { background-color: #1e1f20; color: #e3e3e3; }
+        .animate-fade-in-up { animation: fadeInUp 0.4s ease-out forwards; }
     </style>
 </head>
-<body class="selection:bg-blue-500/30 text-[#e3e3e3]">
+<body class="selection:bg-blue-500/30">
     <div id="root"></div>
 
     <script type="text/babel">
@@ -92,17 +81,7 @@
             AreaChart, Area, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar 
         } = window.Recharts || {};
 
-        const COLORS = ['#8ab4f8', '#81c995', '#fde293', '#fcad70', '#c58af9', '#6ee7b7'];
         const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Ags", "Sep", "Okt", "Nov", "Des"];
-
-        // Clean Tooltip
-        const tooltipStyle = {
-            backgroundColor: '#282a2c', 
-            border: 'none', 
-            color: '#e3e3e3',
-            borderRadius: '8px',
-            padding: '12px'
-        };
 
         // --- Icons ---
         const IconUpload = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>;
@@ -112,8 +91,18 @@
         const IconFilter = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>;
         const IconChevronDown = () => <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>;
         const IconDownload = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>;
+        const IconSun = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>;
+        const IconMoon = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>;
 
         const App = () => {
+            // Mode Gelap State (Default Aktif)
+            const [isDarkMode, setIsDarkMode] = useState(true);
+
+            useEffect(() => {
+                if (isDarkMode) document.documentElement.classList.add('dark');
+                else document.documentElement.classList.remove('dark');
+            }, [isDarkMode]);
+
             const [appMode, setAppMode] = useState('welcome');
             const [dashboardType, setDashboardType] = useState('single');
             
@@ -132,6 +121,22 @@
 
             const [metricWilayah, setMetricWilayah] = useState("Penyaluran");
             const [metricDistributor, setMetricDistributor] = useState("Penyaluran");
+
+            // --- Palet Warna Dinamis untuk Recharts ---
+            const chartColors = {
+                grid: isDarkMode ? '#282a2c' : '#e2e8f0',
+                text: isDarkMode ? '#c4c7c5' : '#64748b',
+                tooltipBg: isDarkMode ? '#282a2c' : '#ffffff',
+                tooltipText: isDarkMode ? '#e3e3e3' : '#1e293b',
+                tooltipShadow: isDarkMode ? 'none' : '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                pieStroke: isDarkMode ? 'none' : '#ffffff',
+                f5Area: isDarkMode ? '#8ab4f8' : '#3b82f6',
+                f6Area: isDarkMode ? '#c58af9' : '#8b5cf6',
+                penebusanArea: isDarkMode ? '#81c995' : '#10b981',
+                pieColors: isDarkMode 
+                    ? ['#8ab4f8', '#81c995', '#fde293', '#fcad70', '#c58af9', '#6ee7b7'] 
+                    : ['#3b82f6', '#10b981', '#f59e0b', '#f97316', '#8b5cf6', '#34d399']
+            };
 
             const parseIndonesianNumber = (val) => {
                 if (val === undefined || val === null || val === '') return 0;
@@ -295,34 +300,24 @@
 
                 setIsExporting(true);
                 try {
-                    // Gunakan html2canvas untuk memfoto div area dashboard
                     const canvas = await html2canvas(dashboardElement, {
-                        scale: 2, // Kualitas resolusi tinggi
-                        backgroundColor: '#131314', // Sama dengan warna background tema
+                        scale: 2, 
+                        backgroundColor: isDarkMode ? '#131314' : '#f8fafc', 
                         useCORS: true,
                         logging: false
                     });
                     
                     const imgData = canvas.toDataURL('image/png');
-                    
-                    // Inisialisasi jsPDF (Landscape, satuan mm, kertas A4)
-                    const pdf = new window.jspdf.jsPDF({
-                        orientation: 'landscape',
-                        unit: 'mm',
-                        format: 'a4'
-                    });
+                    const pdf = new window.jspdf.jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
 
                     const pdfWidth = pdf.internal.pageSize.getWidth();
                     const pdfHeight = pdf.internal.pageSize.getHeight();
                     
-                    // Hitung rasio agar gambar proporsional di dalam kertas PDF
                     const imgProps = pdf.getImageProperties(imgData);
                     const ratio = Math.min(pdfWidth / imgProps.width, pdfHeight / imgProps.height);
                     
                     const imgWidth = imgProps.width * ratio;
                     const imgHeight = imgProps.height * ratio;
-                    
-                    // Posisi gambar agar berada di tengah kertas
                     const marginX = (pdfWidth - imgWidth) / 2;
                     const marginY = (pdfHeight - imgHeight) / 2;
 
@@ -432,8 +427,8 @@
                 return (
                     <div className="min-h-screen flex flex-col items-center justify-center p-4 sm:p-6 relative overflow-hidden">
                         <div className="flex flex-col items-center animate-pulse">
-                            <div className="w-12 h-12 sm:w-14 sm:h-14 border-4 border-[#282a2c] border-t-[#8ab4f8] rounded-full animate-spin mb-4"></div>
-                            <h2 className="text-lg sm:text-xl font-medium text-[#e3e3e3]">Memproses Data...</h2>
+                            <div className="w-12 h-12 sm:w-14 sm:h-14 border-4 border-slate-200 dark:border-[#282a2c] border-t-blue-500 dark:border-t-[#8ab4f8] rounded-full animate-spin mb-4"></div>
+                            <h2 className="text-lg sm:text-xl font-medium text-slate-800 dark:text-[#e3e3e3]">Memproses Data...</h2>
                         </div>
                     </div>
                 );
@@ -443,29 +438,37 @@
             if (appMode === 'welcome') {
                 return (
                     <div className="min-h-screen flex flex-col items-center justify-center p-4 sm:p-6 relative overflow-hidden">
-                        <div className="p-6 sm:p-10 card-flat max-w-lg w-full text-center relative z-10">
-                            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-[#282a2c] text-[#8ab4f8] rounded-full flex items-center justify-center mx-auto mb-6">
+                        
+                        {/* Tema Toggle Button (Welcome Screen) */}
+                        <div className="absolute top-6 right-6">
+                            <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-3 bg-white dark:bg-[#1e1f20] text-slate-500 dark:text-[#e3e3e3] rounded-full shadow-md dark:shadow-none transition-colors hover:bg-slate-50 dark:hover:bg-[#282a2c]">
+                                {isDarkMode ? <IconSun /> : <IconMoon />}
+                            </button>
+                        </div>
+
+                        <div className="p-6 sm:p-10 bg-white dark:bg-[#1e1f20] shadow-xl dark:shadow-none rounded-2xl max-w-lg w-full text-center relative z-10">
+                            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-blue-50 dark:bg-[#282a2c] text-blue-600 dark:text-[#8ab4f8] rounded-full flex items-center justify-center mx-auto mb-6">
                                 <IconTrending />
                             </div>
-                            <h2 className="text-2xl sm:text-3xl font-semibold text-[#e3e3e3] mb-3">Dashboard Distribusi</h2>
-                            <p className="text-sm sm:text-base text-[#c4c7c5] mb-8 leading-relaxed">Pilih mode dashboard untuk memvisualisasikan data.</p>
+                            <h2 className="text-2xl sm:text-3xl font-semibold text-slate-800 dark:text-[#e3e3e3] mb-3">Dashboard Distribusi</h2>
+                            <p className="text-sm sm:text-base text-slate-500 dark:text-[#c4c7c5] mb-8 leading-relaxed">Pilih mode dashboard untuk memvisualisasikan data.</p>
                             
                             <div className="flex flex-col gap-4">
-                                <label className="cursor-pointer bg-[#282a2c] hover:bg-[#333538] text-[#e3e3e3] px-4 py-3 sm:px-6 sm:py-4 rounded-xl flex items-center justify-center gap-3 transition-all">
+                                <label className="cursor-pointer bg-slate-100 hover:bg-slate-200 dark:bg-[#282a2c] dark:hover:bg-[#333538] text-slate-800 dark:text-[#e3e3e3] px-4 py-3 sm:px-6 sm:py-4 rounded-xl flex items-center justify-center gap-3 transition-all">
                                     <IconUpload />
                                     <span className="font-medium text-base sm:text-lg">Mode Tunggal (F5/F6)</span>
                                     <input type="file" accept=".csv, .xlsx, .xls" onChange={handleSingleUpload} className="hidden" />
                                 </label>
                                 
-                                <button onClick={() => setAppMode('compare_setup')} className="bg-[#282a2c] hover:bg-[#333538] text-[#c58af9] px-4 py-3 sm:px-6 sm:py-4 rounded-xl flex items-center justify-center gap-3 transition-all">
+                                <button onClick={() => setAppMode('compare_setup')} className="bg-slate-100 hover:bg-slate-200 dark:bg-[#282a2c] dark:hover:bg-[#333538] text-purple-600 dark:text-[#c58af9] px-4 py-3 sm:px-6 sm:py-4 rounded-xl flex items-center justify-center gap-3 transition-all">
                                     <IconCompare />
                                     <span className="font-medium text-base sm:text-lg">Mode Perbandingan</span>
                                 </button>
                             </div>
                             
-                            <p className="mt-8 text-xs text-[#c4c7c5]">Mendukung format file .csv, .xlsx, dan .xls</p>
+                            <p className="mt-8 text-xs text-slate-400 dark:text-[#c4c7c5]">Mendukung format file .csv, .xlsx, dan .xls</p>
                         </div>
-                        <footer className="text-center mt-12 text-xs text-[#c4c7c5] w-full">
+                        <footer className="text-center mt-12 text-xs text-slate-400 dark:text-[#c4c7c5] w-full">
                             <p className="whitespace-nowrap sm:whitespace-normal">Copyright &copy; 2025 Adm Pemasaran & Penjualan</p>
                             <p className="mt-1">Design by 00.0034</p>
                         </footer>
@@ -477,29 +480,29 @@
             if (appMode === 'compare_setup') {
                 return (
                     <div className="min-h-screen flex flex-col items-center justify-center p-4 sm:p-6 relative overflow-hidden">
-                        <div className="p-6 sm:p-10 card-flat max-w-2xl w-full text-center relative z-10 animate-fade-in-up">
+                        <div className="p-6 sm:p-10 bg-white dark:bg-[#1e1f20] shadow-xl dark:shadow-none rounded-2xl max-w-2xl w-full text-center relative z-10 animate-fade-in-up">
                             <div className="flex flex-col sm:flex-row justify-between items-center mb-8 gap-4 sm:gap-0">
-                                <button onClick={() => setAppMode('welcome')} className="text-[#c4c7c5] hover:text-[#e3e3e3] transition font-medium text-sm flex items-center gap-1 self-start sm:self-auto">
+                                <button onClick={() => setAppMode('welcome')} className="text-slate-500 dark:text-[#c4c7c5] hover:text-slate-800 dark:hover:text-[#e3e3e3] transition font-medium text-sm flex items-center gap-1 self-start sm:self-auto">
                                     &larr; Kembali
                                 </button>
-                                <h2 className="text-xl sm:text-2xl font-semibold text-[#e3e3e3]">Setup Perbandingan</h2>
+                                <h2 className="text-xl sm:text-2xl font-semibold text-slate-800 dark:text-[#e3e3e3]">Setup Perbandingan</h2>
                                 <div className="hidden sm:block w-16"></div>
                             </div>
                             
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 mb-8">
                                 {/* Upload Box F5 */}
-                                <label className={`cursor-pointer flex flex-col items-center justify-center p-6 sm:p-8 rounded-xl sm:rounded-2xl transition-all ${tempFileF5 ? 'bg-[#1b2f24]' : 'bg-[#282a2c] hover:bg-[#333538]'}`}>
-                                    {tempFileF5 ? <div className="mb-2"><IconCheck /></div> : <div className="text-[#8ab4f8] mb-2"><IconUpload /></div>}
-                                    <span className={`font-medium text-sm sm:text-base ${tempFileF5 ? 'text-[#81c995]' : 'text-[#8ab4f8]'}`}>1. Upload Data F5</span>
-                                    <span className="text-xs text-[#c4c7c5] mt-2 truncate max-w-[200px] px-2">{tempFileF5 ? tempFileF5.name : 'Pilih file CSV/Excel'}</span>
+                                <label className={`cursor-pointer flex flex-col items-center justify-center p-6 sm:p-8 rounded-xl sm:rounded-2xl transition-all border border-dashed ${tempFileF5 ? 'bg-emerald-50 dark:bg-[#1b2f24] border-emerald-300 dark:border-transparent' : 'bg-slate-50 hover:bg-slate-100 dark:bg-[#282a2c] dark:hover:bg-[#333538] border-slate-300 dark:border-transparent'}`}>
+                                    {tempFileF5 ? <div className="mb-2"><IconCheck /></div> : <div className="text-blue-500 dark:text-[#8ab4f8] mb-2"><IconUpload /></div>}
+                                    <span className={`font-medium text-sm sm:text-base ${tempFileF5 ? 'text-emerald-600 dark:text-[#81c995]' : 'text-blue-600 dark:text-[#8ab4f8]'}`}>1. Upload Data F5</span>
+                                    <span className="text-xs text-slate-500 dark:text-[#c4c7c5] mt-2 truncate max-w-[200px] px-2">{tempFileF5 ? tempFileF5.name : 'Pilih file CSV/Excel'}</span>
                                     <input type="file" accept=".csv, .xlsx, .xls" onChange={(e) => setTempFileF5(e.target.files[0])} className="hidden" />
                                 </label>
 
                                 {/* Upload Box F6 */}
-                                <label className={`cursor-pointer flex flex-col items-center justify-center p-6 sm:p-8 rounded-xl sm:rounded-2xl transition-all ${tempFileF6 ? 'bg-[#1b2f24]' : 'bg-[#282a2c] hover:bg-[#333538]'}`}>
-                                    {tempFileF6 ? <div className="mb-2"><IconCheck /></div> : <div className="text-[#c58af9] mb-2"><IconUpload /></div>}
-                                    <span className={`font-medium text-sm sm:text-base ${tempFileF6 ? 'text-[#81c995]' : 'text-[#c58af9]'}`}>2. Upload Data F6</span>
-                                    <span className="text-xs text-[#c4c7c5] mt-2 truncate max-w-[200px] px-2">{tempFileF6 ? tempFileF6.name : 'Pilih file CSV/Excel'}</span>
+                                <label className={`cursor-pointer flex flex-col items-center justify-center p-6 sm:p-8 rounded-xl sm:rounded-2xl transition-all border border-dashed ${tempFileF6 ? 'bg-emerald-50 dark:bg-[#1b2f24] border-emerald-300 dark:border-transparent' : 'bg-slate-50 hover:bg-slate-100 dark:bg-[#282a2c] dark:hover:bg-[#333538] border-slate-300 dark:border-transparent'}`}>
+                                    {tempFileF6 ? <div className="mb-2"><IconCheck /></div> : <div className="text-purple-500 dark:text-[#c58af9] mb-2"><IconUpload /></div>}
+                                    <span className={`font-medium text-sm sm:text-base ${tempFileF6 ? 'text-emerald-600 dark:text-[#81c995]' : 'text-purple-600 dark:text-[#c58af9]'}`}>2. Upload Data F6</span>
+                                    <span className="text-xs text-slate-500 dark:text-[#c4c7c5] mt-2 truncate max-w-[200px] px-2">{tempFileF6 ? tempFileF6.name : 'Pilih file CSV/Excel'}</span>
                                     <input type="file" accept=".csv, .xlsx, .xls" onChange={(e) => setTempFileF6(e.target.files[0])} className="hidden" />
                                 </label>
                             </div>
@@ -507,7 +510,7 @@
                             <button 
                                 onClick={executeComparison} 
                                 disabled={!tempFileF5 || !tempFileF6}
-                                className={`w-full py-3 sm:py-4 rounded-xl font-medium text-base sm:text-lg flex items-center justify-center gap-2 transition-all ${tempFileF5 && tempFileF6 ? 'bg-[#333538] text-[#e3e3e3] hover:bg-[#444746]' : 'bg-[#1e1f20] text-[#5f6368] cursor-not-allowed'}`}
+                                className={`w-full py-3 sm:py-4 rounded-xl font-medium text-base sm:text-lg flex items-center justify-center gap-2 transition-all ${tempFileF5 && tempFileF6 ? 'bg-slate-800 text-white hover:bg-slate-700 dark:bg-[#333538] dark:text-[#e3e3e3] dark:hover:bg-[#444746]' : 'bg-slate-100 text-slate-400 dark:bg-[#1e1f20] dark:text-[#5f6368] cursor-not-allowed'}`}
                             >
                                 <IconCompare /> Tampilkan Perbandingan
                             </button>
@@ -520,91 +523,96 @@
             return (
                 <div className="min-h-screen p-3 sm:p-6 relative animate-fade-in-up" id="dashboard-export-area">
                     {/* Header */}
-                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 sm:mb-8 p-4 sm:p-6 card-flat gap-4 sm:gap-0">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 sm:mb-8 p-4 sm:p-6 bg-white dark:bg-[#1e1f20] shadow-sm dark:shadow-none rounded-xl gap-4 sm:gap-0">
                         <div className="w-full sm:w-auto">
-                            <h1 className="text-lg sm:text-2xl font-semibold text-[#e3e3e3] flex flex-wrap items-center gap-2">
-                                <span className={dashboardType === 'compare' ? 'text-[#c58af9]' : 'text-[#8ab4f8]'}>
+                            <h1 className="text-lg sm:text-2xl font-semibold text-slate-800 dark:text-[#e3e3e3] flex flex-wrap items-center gap-2">
+                                <span className={dashboardType === 'compare' ? 'text-purple-600 dark:text-[#c58af9]' : 'text-blue-600 dark:text-[#8ab4f8]'}>
                                     {dashboardType === 'compare' ? <IconCompare /> : <IconTrending />}
                                 </span>
-                                Dashboard F5/F6
-                                <span className="text-[10px] sm:text-xs font-medium px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full bg-[#282a2c] text-[#c4c7c5] ml-2">
+                                <span className="break-words">Dashboard F5/F6</span>
+                                <span className="text-[10px] sm:text-xs font-medium px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full bg-slate-100 dark:bg-[#282a2c] text-slate-600 dark:text-[#c4c7c5] ml-2 whitespace-nowrap">
                                     {dashboardType === 'compare' ? 'Mode Perbandingan' : 'Mode Tunggal'}
                                 </span>
                             </h1>
-                            <p className="text-[#c4c7c5] text-xs sm:text-sm mt-1">Monitoring Penebusan & Penyaluran Pupuk</p>
+                            <p className="text-slate-500 dark:text-[#c4c7c5] text-xs sm:text-sm mt-1">Monitoring Penebusan & Penyaluran Pupuk</p>
                         </div>
                         
-                        {/* Tombol diletakkan di dalam div dengan data-html2canvas-ignore="true" agar tidak ikut masuk ke PDF */}
                         <div className="w-full sm:w-auto flex flex-wrap gap-2" data-html2canvas-ignore="true">
                             <button 
                                 onClick={exportToPDF} 
                                 disabled={isExporting} 
-                                className="w-full sm:w-auto bg-[#282a2c] hover:bg-[#333538] text-[#8ab4f8] px-4 py-2 sm:py-2.5 rounded-lg flex items-center justify-center gap-2 transition font-medium text-sm disabled:opacity-60 disabled:cursor-wait"
+                                className="w-full sm:w-auto bg-slate-50 hover:bg-slate-100 dark:bg-[#282a2c] dark:hover:bg-[#333538] text-blue-600 dark:text-[#8ab4f8] px-4 py-2 sm:py-2.5 rounded-lg flex items-center justify-center gap-2 transition font-medium text-sm border border-slate-200 dark:border-transparent disabled:opacity-60 disabled:cursor-wait"
                             >
                                 <IconDownload />
                                 {isExporting ? 'Mengekspor...' : 'Export PDF'}
                             </button>
                             <button 
                                 onClick={() => { setAppMode('welcome'); setTempFileF5(null); setTempFileF6(null); }} 
-                                className="w-full sm:w-auto bg-[#282a2c] hover:bg-[#333538] text-[#e3e3e3] px-4 py-2 sm:py-2.5 rounded-lg flex items-center justify-center gap-2 transition font-medium text-sm"
+                                className="w-full sm:w-auto bg-slate-50 hover:bg-slate-100 dark:bg-[#282a2c] dark:hover:bg-[#333538] text-slate-700 dark:text-[#e3e3e3] px-4 py-2 sm:py-2.5 rounded-lg flex items-center justify-center gap-2 transition font-medium text-sm border border-slate-200 dark:border-transparent"
                             >
-                                Ubah Data / Mode
+                                Ubah Data
+                            </button>
+                            <button 
+                                onClick={() => setIsDarkMode(!isDarkMode)} 
+                                className="w-full sm:w-auto bg-slate-50 hover:bg-slate-100 dark:bg-[#282a2c] dark:hover:bg-[#333538] text-slate-700 dark:text-[#e3e3e3] px-4 py-2 sm:py-2.5 rounded-lg flex items-center justify-center gap-2 transition font-medium text-sm border border-slate-200 dark:border-transparent"
+                            >
+                                {isDarkMode ? <IconSun /> : <IconMoon />} Tema
                             </button>
                         </div>
                     </div>
 
                     {/* Filter Section */}
-                    <div className="p-4 sm:p-6 card-flat mb-6 sm:mb-8">
-                        <div className="flex items-center gap-2 mb-4 sm:mb-6 text-[#e3e3e3] font-medium text-base sm:text-lg">
-                            <div className="text-[#c4c7c5]"><IconFilter /></div>
-                            <span>Filter Data {dashboardType === 'compare' && <span className="text-xs sm:text-sm font-normal text-[#c4c7c5] ml-1">(F5 & F6)</span>}</span>
+                    <div className="p-4 sm:p-6 bg-white dark:bg-[#1e1f20] shadow-sm dark:shadow-none rounded-xl mb-6 sm:mb-8">
+                        <div className="flex items-center gap-2 mb-4 sm:mb-6 text-slate-800 dark:text-[#e3e3e3] font-medium text-base sm:text-lg">
+                            <div className="text-slate-500 dark:text-[#c4c7c5]"><IconFilter /></div>
+                            <span>Filter Data {dashboardType === 'compare' && <span className="text-xs sm:text-sm font-normal text-slate-500 dark:text-[#c4c7c5] ml-1">(F5 & F6)</span>}</span>
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
                             <div>
-                                <label className="block text-xs font-medium text-[#c4c7c5] mb-2 uppercase tracking-wide">Provinsi</label>
+                                <label className="block text-xs font-medium text-slate-500 dark:text-[#c4c7c5] mb-2 uppercase tracking-wide">Provinsi</label>
                                 <div className="relative">
-                                    <select className="w-full appearance-none input-flat rounded-lg p-2.5 sm:p-3 pr-8 text-sm transition cursor-pointer"
+                                    <select className="w-full appearance-none bg-slate-50 hover:bg-slate-100 dark:bg-[#282a2c] dark:hover:bg-[#333538] text-slate-700 dark:text-[#e3e3e3] rounded-lg p-2.5 sm:p-3 pr-8 text-xs sm:text-sm transition cursor-pointer border border-slate-200 dark:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500/50"
                                         value={filterProv} onChange={(e) => { setFilterProv(e.target.value); setFilterKab("All"); }}>
                                         <option value="All">Semua Provinsi</option>
                                         {uniqueProvinces.map(p => <option key={p} value={p}>{p}</option>)}
                                     </select>
-                                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-[#c4c7c5]"><IconChevronDown /></div>
+                                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-400 dark:text-[#c4c7c5]"><IconChevronDown /></div>
                                 </div>
                             </div>
 
                             <div>
-                                <label className="block text-xs font-medium text-[#c4c7c5] mb-2 uppercase tracking-wide">Kabupaten</label>
+                                <label className="block text-xs font-medium text-slate-500 dark:text-[#c4c7c5] mb-2 uppercase tracking-wide">Kabupaten</label>
                                 <div className="relative">
-                                    <select className="w-full appearance-none input-flat rounded-lg p-2.5 sm:p-3 pr-8 text-sm transition cursor-pointer"
+                                    <select className="w-full appearance-none bg-slate-50 hover:bg-slate-100 dark:bg-[#282a2c] dark:hover:bg-[#333538] text-slate-700 dark:text-[#e3e3e3] rounded-lg p-2.5 sm:p-3 pr-8 text-xs sm:text-sm transition cursor-pointer border border-slate-200 dark:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500/50"
                                         value={filterKab} onChange={(e) => setFilterKab(e.target.value)}>
                                         <option value="All">Semua Kabupaten</option>
                                         {uniqueKabupaten.map(p => <option key={p} value={p}>{p}</option>)}
                                     </select>
-                                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-[#c4c7c5]"><IconChevronDown /></div>
+                                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-400 dark:text-[#c4c7c5]"><IconChevronDown /></div>
                                 </div>
                             </div>
 
                             <div>
-                                <label className="block text-xs font-medium text-[#c4c7c5] mb-2 uppercase tracking-wide">Produk</label>
+                                <label className="block text-xs font-medium text-slate-500 dark:text-[#c4c7c5] mb-2 uppercase tracking-wide">Produk</label>
                                 <div className="relative">
-                                    <select className="w-full appearance-none input-flat rounded-lg p-2.5 sm:p-3 pr-8 text-sm transition cursor-pointer"
+                                    <select className="w-full appearance-none bg-slate-50 hover:bg-slate-100 dark:bg-[#282a2c] dark:hover:bg-[#333538] text-slate-700 dark:text-[#e3e3e3] rounded-lg p-2.5 sm:p-3 pr-8 text-xs sm:text-sm transition cursor-pointer border border-slate-200 dark:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500/50"
                                         value={filterProd} onChange={(e) => setFilterProd(e.target.value)}>
                                         <option value="All">Semua Produk</option>
                                         {uniqueProducts.map(p => <option key={p} value={p}>{p}</option>)}
                                     </select>
-                                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-[#c4c7c5]"><IconChevronDown /></div>
+                                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-400 dark:text-[#c4c7c5]"><IconChevronDown /></div>
                                 </div>
                             </div>
 
                              <div>
-                                <label className="block text-xs font-medium text-[#c4c7c5] mb-2 uppercase tracking-wide">Distributor</label>
+                                <label className="block text-xs font-medium text-slate-500 dark:text-[#c4c7c5] mb-2 uppercase tracking-wide">Distributor</label>
                                 <div className="relative">
-                                    <select className="w-full appearance-none input-flat rounded-lg p-2.5 sm:p-3 pr-8 text-sm transition cursor-pointer"
+                                    <select className="w-full appearance-none bg-slate-50 hover:bg-slate-100 dark:bg-[#282a2c] dark:hover:bg-[#333538] text-slate-700 dark:text-[#e3e3e3] rounded-lg p-2.5 sm:p-3 pr-8 text-xs sm:text-sm transition cursor-pointer border border-slate-200 dark:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500/50"
                                         value={filterDistributor} onChange={(e) => setFilterDistributor(e.target.value)}>
                                         <option value="All">Semua Distributor</option>
                                         {uniqueDistributors.map(d => <option key={d} value={d}>{d}</option>)}
                                     </select>
-                                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-[#c4c7c5]"><IconChevronDown /></div>
+                                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-400 dark:text-[#c4c7c5]"><IconChevronDown /></div>
                                 </div>
                             </div>
                         </div>
@@ -614,45 +622,45 @@
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
                         {dashboardType === 'single' ? (
                             <>
-                                <div className="p-4 sm:p-6 card-flat">
-                                    <p className="text-[#c4c7c5] text-xs sm:text-sm font-medium">Total Penyaluran</p>
-                                    <h3 className="text-xl sm:text-2xl font-semibold text-[#8ab4f8] mt-2">{formatNumber(kpiSingle.totalPenyaluran)} <span className="text-[10px] sm:text-xs text-[#5f6368] font-normal">Ton</span></h3>
+                                <div className="p-4 sm:p-6 bg-white dark:bg-[#1e1f20] shadow-sm dark:shadow-none rounded-xl">
+                                    <p className="text-slate-500 dark:text-[#c4c7c5] text-xs sm:text-sm font-medium">Total Penyaluran</p>
+                                    <h3 className="text-xl sm:text-2xl font-semibold text-blue-600 dark:text-[#8ab4f8] mt-2">{formatNumber(kpiSingle.totalPenyaluran)} <span className="text-[10px] sm:text-xs text-slate-400 dark:text-[#5f6368] font-normal">Ton</span></h3>
                                 </div>
-                                <div className="p-4 sm:p-6 card-flat">
-                                    <p className="text-[#c4c7c5] text-xs sm:text-sm font-medium">Total Penebusan</p>
-                                    <h3 className="text-xl sm:text-2xl font-semibold text-[#81c995] mt-2">{formatNumber(kpiSingle.totalPenebusan)} <span className="text-[10px] sm:text-xs text-[#5f6368] font-normal">Ton</span></h3>
+                                <div className="p-4 sm:p-6 bg-white dark:bg-[#1e1f20] shadow-sm dark:shadow-none rounded-xl">
+                                    <p className="text-slate-500 dark:text-[#c4c7c5] text-xs sm:text-sm font-medium">Total Penebusan</p>
+                                    <h3 className="text-xl sm:text-2xl font-semibold text-emerald-600 dark:text-[#81c995] mt-2">{formatNumber(kpiSingle.totalPenebusan)} <span className="text-[10px] sm:text-xs text-slate-400 dark:text-[#5f6368] font-normal">Ton</span></h3>
                                 </div>
-                                <div className="p-4 sm:p-6 card-flat">
-                                    <p className="text-[#c4c7c5] text-xs sm:text-sm font-medium">Rata-rata Stok Akhir</p>
-                                    <h3 className="text-xl sm:text-2xl font-semibold text-[#fde293] mt-2">{formatNumber(kpiSingle.avgStokAkhir)} <span className="text-[10px] sm:text-xs text-[#5f6368] font-normal">Ton</span></h3>
+                                <div className="p-4 sm:p-6 bg-white dark:bg-[#1e1f20] shadow-sm dark:shadow-none rounded-xl">
+                                    <p className="text-slate-500 dark:text-[#c4c7c5] text-xs sm:text-sm font-medium">Rata-rata Stok Akhir</p>
+                                    <h3 className="text-xl sm:text-2xl font-semibold text-amber-500 dark:text-[#fde293] mt-2">{formatNumber(kpiSingle.avgStokAkhir)} <span className="text-[10px] sm:text-xs text-slate-400 dark:text-[#5f6368] font-normal">Ton</span></h3>
                                 </div>
-                                <div className="p-4 sm:p-6 card-flat">
-                                    <p className="text-[#c4c7c5] text-xs sm:text-sm font-medium">Distributor Aktif</p>
-                                    <h3 className="text-xl sm:text-2xl font-semibold text-[#c58af9] mt-2">{kpiSingle.uniqueDistributors} <span className="text-[10px] sm:text-xs text-[#5f6368] font-normal">Entitas</span></h3>
+                                <div className="p-4 sm:p-6 bg-white dark:bg-[#1e1f20] shadow-sm dark:shadow-none rounded-xl">
+                                    <p className="text-slate-500 dark:text-[#c4c7c5] text-xs sm:text-sm font-medium">Distributor Aktif</p>
+                                    <h3 className="text-xl sm:text-2xl font-semibold text-purple-600 dark:text-[#c58af9] mt-2">{kpiSingle.uniqueDistributors} <span className="text-[10px] sm:text-xs text-slate-400 dark:text-[#5f6368] font-normal">Entitas</span></h3>
                                 </div>
                             </>
                         ) : (
                             <>
-                                <div className="p-4 sm:p-5 card-flat">
-                                    <p className="text-[#c4c7c5] text-xs sm:text-sm font-medium mb-3">Perbandingan Penyaluran</p>
-                                    <div className="flex justify-between items-end mb-2"><span className="text-[10px] sm:text-xs text-[#5f6368]">F5:</span> <span className="text-sm sm:text-base font-medium text-[#8ab4f8]">{formatNumber(kpiCompare.F5_Penyaluran)} Ton</span></div>
-                                    <div className="flex justify-between items-end"><span className="text-[10px] sm:text-xs text-[#5f6368]">F6:</span> <span className="text-sm sm:text-base font-medium text-[#c58af9]">{formatNumber(kpiCompare.F6_Penyaluran)} Ton</span></div>
+                                <div className="p-4 sm:p-5 bg-white dark:bg-[#1e1f20] shadow-sm dark:shadow-none rounded-xl">
+                                    <p className="text-slate-500 dark:text-[#c4c7c5] text-xs sm:text-sm font-medium mb-3">Perbandingan Penyaluran</p>
+                                    <div className="flex justify-between items-end mb-2"><span className="text-[10px] sm:text-xs text-slate-400 dark:text-[#5f6368]">F5:</span> <span className="text-sm sm:text-base font-medium text-blue-600 dark:text-[#8ab4f8]">{formatNumber(kpiCompare.F5_Penyaluran)} Ton</span></div>
+                                    <div className="flex justify-between items-end"><span className="text-[10px] sm:text-xs text-slate-400 dark:text-[#5f6368]">F6:</span> <span className="text-sm sm:text-base font-medium text-purple-600 dark:text-[#c58af9]">{formatNumber(kpiCompare.F6_Penyaluran)} Ton</span></div>
                                 </div>
-                                <div className="p-4 sm:p-5 card-flat">
-                                    <p className="text-[#c4c7c5] text-xs sm:text-sm font-medium mb-3">Perbandingan Penebusan</p>
-                                    <div className="flex justify-between items-end mb-2"><span className="text-[10px] sm:text-xs text-[#5f6368]">F5:</span> <span className="text-sm sm:text-base font-medium text-[#8ab4f8]">{formatNumber(kpiCompare.F5_Penebusan)} Ton</span></div>
-                                    <div className="flex justify-between items-end"><span className="text-[10px] sm:text-xs text-[#5f6368]">F6:</span> <span className="text-sm sm:text-base font-medium text-[#c58af9]">{formatNumber(kpiCompare.F6_Penebusan)} Ton</span></div>
+                                <div className="p-4 sm:p-5 bg-white dark:bg-[#1e1f20] shadow-sm dark:shadow-none rounded-xl">
+                                    <p className="text-slate-500 dark:text-[#c4c7c5] text-xs sm:text-sm font-medium mb-3">Perbandingan Penebusan</p>
+                                    <div className="flex justify-between items-end mb-2"><span className="text-[10px] sm:text-xs text-slate-400 dark:text-[#5f6368]">F5:</span> <span className="text-sm sm:text-base font-medium text-blue-600 dark:text-[#8ab4f8]">{formatNumber(kpiCompare.F5_Penebusan)} Ton</span></div>
+                                    <div className="flex justify-between items-end"><span className="text-[10px] sm:text-xs text-slate-400 dark:text-[#5f6368]">F6:</span> <span className="text-sm sm:text-base font-medium text-purple-600 dark:text-[#c58af9]">{formatNumber(kpiCompare.F6_Penebusan)} Ton</span></div>
                                 </div>
-                                <div className="p-4 sm:p-5 card-flat">
-                                    <p className="text-[#c4c7c5] text-xs sm:text-sm font-medium mb-3">Selisih Penyaluran (F5-F6)</p>
-                                    <h3 className={`text-xl sm:text-2xl font-semibold mt-1 ${kpiCompare.F5_Penyaluran - kpiCompare.F6_Penyaluran >= 0 ? 'text-[#81c995]' : 'text-[#fcad70]'}`}>
-                                        {formatNumber(kpiCompare.F5_Penyaluran - kpiCompare.F6_Penyaluran)} <span className="text-[10px] sm:text-xs text-[#5f6368] font-normal">Ton</span>
+                                <div className="p-4 sm:p-5 bg-white dark:bg-[#1e1f20] shadow-sm dark:shadow-none rounded-xl">
+                                    <p className="text-slate-500 dark:text-[#c4c7c5] text-xs sm:text-sm font-medium mb-3">Selisih Penyaluran (F5-F6)</p>
+                                    <h3 className={`text-xl sm:text-2xl font-semibold mt-1 ${kpiCompare.F5_Penyaluran - kpiCompare.F6_Penyaluran >= 0 ? 'text-emerald-600 dark:text-[#81c995]' : 'text-orange-500 dark:text-[#fcad70]'}`}>
+                                        {formatNumber(kpiCompare.F5_Penyaluran - kpiCompare.F6_Penyaluran)} <span className="text-[10px] sm:text-xs text-slate-400 dark:text-[#5f6368] font-normal">Ton</span>
                                     </h3>
                                 </div>
-                                <div className="p-4 sm:p-5 card-flat">
-                                    <p className="text-[#c4c7c5] text-xs sm:text-sm font-medium mb-3">Selisih Penebusan (F5-F6)</p>
-                                    <h3 className={`text-xl sm:text-2xl font-semibold mt-1 ${kpiCompare.F5_Penebusan - kpiCompare.F6_Penebusan >= 0 ? 'text-[#81c995]' : 'text-[#fcad70]'}`}>
-                                        {formatNumber(kpiCompare.F5_Penebusan - kpiCompare.F6_Penebusan)} <span className="text-[10px] sm:text-xs text-[#5f6368] font-normal">Ton</span>
+                                <div className="p-4 sm:p-5 bg-white dark:bg-[#1e1f20] shadow-sm dark:shadow-none rounded-xl">
+                                    <p className="text-slate-500 dark:text-[#c4c7c5] text-xs sm:text-sm font-medium mb-3">Selisih Penebusan (F5-F6)</p>
+                                    <h3 className={`text-xl sm:text-2xl font-semibold mt-1 ${kpiCompare.F5_Penebusan - kpiCompare.F6_Penebusan >= 0 ? 'text-emerald-600 dark:text-[#81c995]' : 'text-orange-500 dark:text-[#fcad70]'}`}>
+                                        {formatNumber(kpiCompare.F5_Penebusan - kpiCompare.F6_Penebusan)} <span className="text-[10px] sm:text-xs text-slate-400 dark:text-[#5f6368] font-normal">Ton</span>
                                     </h3>
                                 </div>
                             </>
@@ -662,35 +670,36 @@
                     {/* Charts Section 1: Trend & Product Mix */}
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
                         {/* Trend Chart */}
-                        <div className="p-4 sm:p-6 card-flat lg:col-span-2">
-                            <h3 className="text-base sm:text-lg font-medium text-[#e3e3e3] mb-6">
-                                <span className="truncate">{dashboardType === 'single' ? 'Tren Penebusan vs Penyaluran' : 'Perbandingan F5 vs F6 per Bulan'}</span>
+                        <div className="p-4 sm:p-6 bg-white dark:bg-[#1e1f20] shadow-sm dark:shadow-none rounded-xl lg:col-span-2">
+                            <h3 className="text-base sm:text-lg font-medium text-slate-800 dark:text-[#e3e3e3] mb-6 flex items-start sm:items-center gap-2">
+                                <span className="w-1 h-5 sm:h-6 bg-blue-500 rounded-full flex-shrink-0 mt-0.5 sm:mt-0"></span>
+                                <span className="leading-snug break-words">{dashboardType === 'single' ? 'Tren Penebusan vs Penyaluran' : 'Perbandingan F5 vs F6 per Bulan'}</span>
                             </h3>
                             <div className="h-64 sm:h-80 w-full">
                                 <ResponsiveContainer width="100%" height="100%">
                                     {dashboardType === 'single' ? (
                                         <AreaChart data={trendData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                                             <defs>
-                                                <linearGradient id="colorPenebusan" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#81c995" stopOpacity={0.4}/><stop offset="95%" stopColor="#81c995" stopOpacity={0}/></linearGradient>
-                                                <linearGradient id="colorPenyaluran" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#8ab4f8" stopOpacity={0.4}/><stop offset="95%" stopColor="#8ab4f8" stopOpacity={0}/></linearGradient>
+                                                <linearGradient id="colorPenebusan" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={chartColors.penebusanArea} stopOpacity={0.4}/><stop offset="95%" stopColor={chartColors.penebusanArea} stopOpacity={0}/></linearGradient>
+                                                <linearGradient id="colorPenyaluran" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={chartColors.f5Area} stopOpacity={0.4}/><stop offset="95%" stopColor={chartColors.f5Area} stopOpacity={0}/></linearGradient>
                                             </defs>
-                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#282a2c"/>
-                                            <XAxis dataKey="name" axisLine={false} tickLine={false} dy={10} style={{ fontSize: '10px', fill: '#c4c7c5' }}/>
-                                            <YAxis tickFormatter={formatYAxis} axisLine={false} tickLine={false} dx={-10} style={{ fontSize: '10px', fill: '#c4c7c5' }}/>
-                                            <Tooltip formatter={(value) => new Intl.NumberFormat('id-ID', { maximumFractionDigits: 2 }).format(value)} contentStyle={tooltipStyle} itemStyle={{color: '#e3e3e3'}}/>
-                                            <Legend wrapperStyle={{ paddingTop: '10px', fontSize: '12px', color: '#c4c7c5' }}/>
-                                            <Area type="monotone" dataKey="Penebusan" stroke="#81c995" strokeWidth={2} fillOpacity={1} fill="url(#colorPenebusan)" />
-                                            <Area type="monotone" dataKey="Penyaluran" stroke="#8ab4f8" strokeWidth={2} fillOpacity={1} fill="url(#colorPenyaluran)" />
+                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={chartColors.grid}/>
+                                            <XAxis dataKey="name" axisLine={false} tickLine={false} dy={10} style={{ fontSize: '10px', fill: chartColors.text }}/>
+                                            <YAxis tickFormatter={formatYAxis} axisLine={false} tickLine={false} dx={-10} style={{ fontSize: '10px', fill: chartColors.text }}/>
+                                            <Tooltip formatter={(value) => new Intl.NumberFormat('id-ID', { maximumFractionDigits: 2 }).format(value)} contentStyle={{ backgroundColor: chartColors.tooltipBg, border: 'none', color: chartColors.tooltipText, borderRadius: '8px', padding: '12px', boxShadow: chartColors.tooltipShadow }} itemStyle={{color: chartColors.tooltipText}}/>
+                                            <Legend wrapperStyle={{ paddingTop: '10px', fontSize: '12px', color: chartColors.text }}/>
+                                            <Area type="monotone" dataKey="Penebusan" stroke={chartColors.penebusanArea} strokeWidth={2} fillOpacity={1} fill="url(#colorPenebusan)" />
+                                            <Area type="monotone" dataKey="Penyaluran" stroke={chartColors.f5Area} strokeWidth={2} fillOpacity={1} fill="url(#colorPenyaluran)" />
                                         </AreaChart>
                                     ) : (
                                         <BarChart data={trendData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#282a2c"/>
-                                            <XAxis dataKey="name" axisLine={false} tickLine={false} dy={10} style={{ fontSize: '10px', fill: '#c4c7c5' }}/>
-                                            <YAxis tickFormatter={formatYAxis} axisLine={false} tickLine={false} dx={-10} style={{ fontSize: '10px', fill: '#c4c7c5' }}/>
-                                            <Tooltip formatter={(value) => new Intl.NumberFormat('id-ID', { maximumFractionDigits: 2 }).format(value) + ' Ton'} cursor={{fill: '#282a2c'}} contentStyle={tooltipStyle} itemStyle={{color: '#e3e3e3'}}/>
-                                            <Legend wrapperStyle={{ paddingTop: '10px', fontSize: '12px', color: '#c4c7c5' }}/>
-                                            <Bar dataKey="F5_Penyaluran" name="F5 Penyaluran" fill="#8ab4f8" radius={[4, 4, 0, 0]} />
-                                            <Bar dataKey="F6_Penyaluran" name="F6 Penyaluran" fill="#c58af9" radius={[4, 4, 0, 0]} />
+                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={chartColors.grid}/>
+                                            <XAxis dataKey="name" axisLine={false} tickLine={false} dy={10} style={{ fontSize: '10px', fill: chartColors.text }}/>
+                                            <YAxis tickFormatter={formatYAxis} axisLine={false} tickLine={false} dx={-10} style={{ fontSize: '10px', fill: chartColors.text }}/>
+                                            <Tooltip formatter={(value) => new Intl.NumberFormat('id-ID', { maximumFractionDigits: 2 }).format(value) + ' Ton'} cursor={{fill: chartColors.grid}} contentStyle={{ backgroundColor: chartColors.tooltipBg, border: 'none', color: chartColors.tooltipText, borderRadius: '8px', padding: '12px', boxShadow: chartColors.tooltipShadow }} itemStyle={{color: chartColors.tooltipText}}/>
+                                            <Legend wrapperStyle={{ paddingTop: '10px', fontSize: '12px', color: chartColors.text }}/>
+                                            <Bar dataKey="F5_Penyaluran" name="F5 Penyaluran" fill={chartColors.f5Area} radius={[4, 4, 0, 0]} />
+                                            <Bar dataKey="F6_Penyaluran" name="F6 Penyaluran" fill={chartColors.f6Area} radius={[4, 4, 0, 0]} />
                                         </BarChart>
                                     )}
                                 </ResponsiveContainer>
@@ -698,29 +707,30 @@
                         </div>
 
                         {/* Product Chart */}
-                        <div className="p-4 sm:p-6 card-flat">
-                             <h3 className="text-base sm:text-lg font-medium text-[#e3e3e3] mb-6">
-                                <span className="truncate">{dashboardType === 'single' ? 'Komposisi Produk' : 'Penyaluran Produk'}</span>
+                        <div className="p-4 sm:p-6 bg-white dark:bg-[#1e1f20] shadow-sm dark:shadow-none rounded-xl">
+                             <h3 className="text-base sm:text-lg font-medium text-slate-800 dark:text-[#e3e3e3] mb-6 flex items-start sm:items-center gap-2">
+                                <span className="w-1 h-5 sm:h-6 bg-amber-500 rounded-full flex-shrink-0 mt-0.5 sm:mt-0"></span>
+                                <span className="leading-snug break-words">{dashboardType === 'single' ? 'Komposisi Produk' : 'Penyaluran Produk'}</span>
                             </h3>
                             <div className="h-64 sm:h-80 w-full">
                                 <ResponsiveContainer width="100%" height="100%">
                                     {dashboardType === 'single' ? (
                                         <PieChart>
-                                            <Pie data={productData} cx="50%" cy="50%" innerRadius={50} outerRadius={80} fill="#8ab4f8" paddingAngle={5} dataKey="value" stroke="none" labelLine={false} label={({name, percent}) => percent > 0.05 ? `${(percent * 100).toFixed(0)}%` : ''}>
-                                                {productData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
+                                            <Pie data={productData} cx="50%" cy="50%" innerRadius={50} outerRadius={80} fill={chartColors.f5Area} paddingAngle={5} dataKey="value" stroke={chartColors.pieStroke} labelLine={false} label={({name, percent}) => percent > 0.05 ? `${(percent * 100).toFixed(0)}%` : ''}>
+                                                {productData.map((entry, index) => <Cell key={`cell-${index}`} fill={chartColors.pieColors[index % chartColors.pieColors.length]} />)}
                                             </Pie>
-                                            <Tooltip formatter={(value) => new Intl.NumberFormat('id-ID', { maximumFractionDigits: 2 }).format(value)} contentStyle={tooltipStyle} itemStyle={{color: '#e3e3e3'}}/>
-                                            <Legend verticalAlign="bottom" height={36} wrapperStyle={{ fontSize: '11px', color: '#c4c7c5' }}/>
+                                            <Tooltip formatter={(value) => new Intl.NumberFormat('id-ID', { maximumFractionDigits: 2 }).format(value)} contentStyle={{ backgroundColor: chartColors.tooltipBg, border: 'none', color: chartColors.tooltipText, borderRadius: '8px', padding: '12px', boxShadow: chartColors.tooltipShadow }} itemStyle={{color: chartColors.tooltipText}}/>
+                                            <Legend verticalAlign="bottom" height={36} wrapperStyle={{ fontSize: '11px', color: chartColors.text }}/>
                                         </PieChart>
                                     ) : (
                                         <BarChart data={productData} layout="vertical" margin={{ top: 0, right: 10, left: 10, bottom: 0 }}>
-                                            <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#282a2c"/>
-                                            <XAxis type="number" tickFormatter={formatYAxis} axisLine={false} tickLine={false} style={{ fontSize: '10px', fill: '#c4c7c5' }}/>
-                                            <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} width={70} style={{ fontSize: '10px', fill: '#e3e3e3' }}/>
-                                            <Tooltip formatter={(value) => new Intl.NumberFormat('id-ID', { maximumFractionDigits: 2 }).format(value) + ' Ton'} cursor={{fill: '#282a2c'}} contentStyle={tooltipStyle} itemStyle={{color: '#e3e3e3'}}/>
-                                            <Legend wrapperStyle={{ paddingTop: '10px', fontSize: '12px', color: '#c4c7c5' }}/>
-                                            <Bar dataKey="F5_Value" name="F5" fill="#8ab4f8" radius={[0, 4, 4, 0]} barSize={12} />
-                                            <Bar dataKey="F6_Value" name="F6" fill="#c58af9" radius={[0, 4, 4, 0]} barSize={12} />
+                                            <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke={chartColors.grid}/>
+                                            <XAxis type="number" tickFormatter={formatYAxis} axisLine={false} tickLine={false} style={{ fontSize: '10px', fill: chartColors.text }}/>
+                                            <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} width={70} style={{ fontSize: '10px', fill: chartColors.tooltipText }}/>
+                                            <Tooltip formatter={(value) => new Intl.NumberFormat('id-ID', { maximumFractionDigits: 2 }).format(value) + ' Ton'} cursor={{fill: chartColors.grid}} contentStyle={{ backgroundColor: chartColors.tooltipBg, border: 'none', color: chartColors.tooltipText, borderRadius: '8px', padding: '12px', boxShadow: chartColors.tooltipShadow }} itemStyle={{color: chartColors.tooltipText}}/>
+                                            <Legend wrapperStyle={{ paddingTop: '10px', fontSize: '12px', color: chartColors.text }}/>
+                                            <Bar dataKey="F5_Value" name="F5" fill={chartColors.f5Area} radius={[0, 4, 4, 0]} barSize={12} />
+                                            <Bar dataKey="F6_Value" name="F6" fill={chartColors.f6Area} radius={[0, 4, 4, 0]} barSize={12} />
                                         </BarChart>
                                     )}
                                 </ResponsiveContainer>
@@ -731,13 +741,14 @@
                     {/* Charts Section 2: LISTS (Top Wilayah & Top Produsen) */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-6 sm:mb-8">
                          {/* List Top 10 Wilayah */}
-                         <div className="p-4 sm:p-6 card-flat flex flex-col h-full">
-                            <div className="flex justify-between items-center mb-6">
-                                <h3 className="text-base sm:text-lg font-medium text-[#e3e3e3] truncate">
-                                    <span className="truncate">Top 10 {filterProv === "All" ? "Provinsi" : "Kabupaten"}</span>
+                         <div className="p-4 sm:p-6 bg-white dark:bg-[#1e1f20] shadow-sm dark:shadow-none rounded-xl flex flex-col h-full">
+                            <div className="flex flex-col sm:flex-row sm:justify-between items-start sm:items-center mb-6 gap-3">
+                                <h3 className="text-base sm:text-lg font-medium text-slate-800 dark:text-[#e3e3e3] flex items-start sm:items-center gap-2">
+                                    <span className="w-1 h-5 sm:h-6 bg-indigo-500 rounded-full flex-shrink-0 mt-0.5 sm:mt-0"></span>
+                                    <span className="leading-snug break-words">Top 10 {filterProv === "All" ? "Provinsi" : "Kabupaten"}</span>
                                 </h3>
                                 <select 
-                                    className="text-[10px] sm:text-xs input-flat rounded-md px-2 py-1 ml-2"
+                                    className="text-[10px] sm:text-xs bg-slate-50 hover:bg-slate-100 dark:bg-[#282a2c] dark:hover:bg-[#333538] text-slate-700 dark:text-[#e3e3e3] rounded-md px-2 py-1 flex-shrink-0 border border-slate-200 dark:border-transparent outline-none cursor-pointer transition"
                                     value={metricWilayah} onChange={(e) => setMetricWilayah(e.target.value)}
                                 >
                                     <option value="Penyaluran">Penyaluran</option>
@@ -745,17 +756,17 @@
                                 </select>
                             </div>
                             <div className="flex-grow overflow-y-auto custom-scrollbar pr-1 sm:pr-2 max-h-64 sm:max-h-80">
-                                {wilayahData.length === 0 ? <div className="text-center text-[#5f6368] py-10 text-sm">Tidak ada data</div> : (
+                                {wilayahData.length === 0 ? <div className="text-center text-slate-400 dark:text-[#5f6368] py-10 text-sm">Tidak ada data</div> : (
                                     <ul className="space-y-2">
                                         {wilayahData.map((item, index) => (
-                                            <li key={index} className="flex items-center justify-between p-3 rounded-lg list-item-flat transition">
-                                                <div className="flex items-center gap-3 overflow-hidden">
-                                                    <span className="text-[10px] sm:text-xs font-medium text-[#5f6368] w-4">{index + 1}</span>
-                                                    <span className="font-medium text-sm sm:text-base text-[#e3e3e3] truncate max-w-[150px] sm:max-w-[250px]" title={item.name}>{item.name}</span>
+                                            <li key={index} className="flex items-start sm:items-center justify-between p-3 rounded-lg bg-slate-50 hover:bg-slate-100 dark:bg-[#282a2c] dark:hover:bg-[#333538] transition border border-slate-100 dark:border-transparent">
+                                                <div className="flex items-start sm:items-center gap-3 flex-1 pr-2">
+                                                    <span className="text-[10px] sm:text-xs font-medium text-slate-500 dark:text-[#5f6368] w-4 flex-shrink-0 mt-0.5 sm:mt-0">{index + 1}</span>
+                                                    <span className="font-medium text-sm sm:text-base text-slate-800 dark:text-[#e3e3e3] break-words leading-tight">{item.name}</span>
                                                 </div>
                                                 <div className="text-right flex-shrink-0 pl-2">
-                                                    <span className="block font-medium text-sm sm:text-base text-[#e3e3e3]">{formatNumber(item.value)}</span>
-                                                    <span className="text-[10px] text-[#5f6368]">Ton</span>
+                                                    <span className="block font-medium text-sm sm:text-base text-slate-800 dark:text-[#e3e3e3]">{formatNumber(item.value)}</span>
+                                                    <span className="text-[10px] text-slate-400 dark:text-[#5f6368]">Ton</span>
                                                 </div>
                                             </li>
                                         ))}
@@ -765,13 +776,14 @@
                         </div>
 
                         {/* List Top Distributor */}
-                        <div className="p-4 sm:p-6 card-flat flex flex-col h-full">
-                            <div className="flex justify-between items-center mb-6">
-                                <h3 className="text-base sm:text-lg font-medium text-[#e3e3e3] truncate">
-                                    <span className="truncate">Top Distributor</span>
+                        <div className="p-4 sm:p-6 bg-white dark:bg-[#1e1f20] shadow-sm dark:shadow-none rounded-xl flex flex-col h-full">
+                            <div className="flex flex-col sm:flex-row sm:justify-between items-start sm:items-center mb-6 gap-3">
+                                <h3 className="text-base sm:text-lg font-medium text-slate-800 dark:text-[#e3e3e3] flex items-start sm:items-center gap-2">
+                                    <span className="w-1 h-5 sm:h-6 bg-emerald-500 rounded-full flex-shrink-0 mt-0.5 sm:mt-0"></span>
+                                    <span className="leading-snug break-words">Top Distributor</span>
                                 </h3>
                                 <select 
-                                    className="text-[10px] sm:text-xs input-flat rounded-md px-2 py-1 ml-2"
+                                    className="text-[10px] sm:text-xs bg-slate-50 hover:bg-slate-100 dark:bg-[#282a2c] dark:hover:bg-[#333538] text-slate-700 dark:text-[#e3e3e3] rounded-md px-2 py-1 flex-shrink-0 border border-slate-200 dark:border-transparent outline-none cursor-pointer transition"
                                     value={metricDistributor} onChange={(e) => setMetricDistributor(e.target.value)}
                                 >
                                     <option value="Penyaluran">Penyaluran</option>
@@ -779,17 +791,17 @@
                                 </select>
                             </div>
                             <div className="flex-grow overflow-y-auto custom-scrollbar pr-1 sm:pr-2 max-h-64 sm:max-h-80">
-                                {distributorData.length === 0 ? <div className="text-center text-[#5f6368] py-10 text-sm">Tidak ada data</div> : (
+                                {distributorData.length === 0 ? <div className="text-center text-slate-400 dark:text-[#5f6368] py-10 text-sm">Tidak ada data</div> : (
                                     <ul className="space-y-2">
                                         {distributorData.map((item, index) => (
-                                            <li key={index} className="flex items-center justify-between p-3 rounded-lg list-item-flat transition">
-                                                <div className="flex items-center gap-3 overflow-hidden">
-                                                    <span className="text-[10px] sm:text-xs font-medium text-[#5f6368] w-4">{index + 1}</span>
-                                                    <span className="font-medium text-sm sm:text-base text-[#e3e3e3] truncate max-w-[150px] sm:max-w-[250px]" title={item.name}>{item.name}</span>
+                                            <li key={index} className="flex items-start sm:items-center justify-between p-3 rounded-lg bg-slate-50 hover:bg-slate-100 dark:bg-[#282a2c] dark:hover:bg-[#333538] transition border border-slate-100 dark:border-transparent">
+                                                <div className="flex items-start sm:items-center gap-3 flex-1 pr-2">
+                                                    <span className="text-[10px] sm:text-xs font-medium text-slate-500 dark:text-[#5f6368] w-4 flex-shrink-0 mt-0.5 sm:mt-0">{index + 1}</span>
+                                                    <span className="font-medium text-sm sm:text-base text-slate-800 dark:text-[#e3e3e3] break-words leading-tight">{item.name}</span>
                                                 </div>
                                                 <div className="text-right flex-shrink-0 pl-2">
-                                                    <span className="block font-medium text-sm sm:text-base text-[#e3e3e3]">{formatNumber(item.value)}</span>
-                                                    <span className="text-[10px] text-[#5f6368]">Ton</span>
+                                                    <span className="block font-medium text-sm sm:text-base text-slate-800 dark:text-[#e3e3e3]">{formatNumber(item.value)}</span>
+                                                    <span className="text-[10px] text-slate-400 dark:text-[#5f6368]">Ton</span>
                                                 </div>
                                             </li>
                                         ))}
@@ -800,7 +812,7 @@
                     </div>
 
                     {/* Footer */}
-                    <footer className="text-center mt-10 sm:mt-12 mb-2 sm:mb-4 text-xs text-[#5f6368] w-full">
+                    <footer className="text-center mt-10 sm:mt-12 mb-2 sm:mb-4 text-xs text-slate-400 dark:text-[#5f6368] w-full">
                         <p className="whitespace-nowrap sm:whitespace-normal">Copyright &copy; 2025 Adm Pemasaran & Penjualan</p>
                         <p className="mt-1">Design by 00.0034</p>
                     </footer>
