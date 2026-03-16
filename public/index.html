@@ -24,6 +24,9 @@
     <!-- PapaParse (CSV Parser) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 
+    <!-- SheetJS (Excel Parser) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
         body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
@@ -99,33 +102,56 @@
                 return parseFloat(strVal) || 0;
             };
 
-            // Helper: Eksekusi Papa Parse
-            const processCSV = (file, datasetTag, callback) => {
-                Papa.parse(file, {
-                    header: true,
-                    skipEmptyLines: true,
-                    complete: (results) => {
-                        const cleanedData = results.data.map(row => {
-                            const getKey = (keyName) => Object.keys(row).find(k => k.trim().toLowerCase() === keyName.toLowerCase());
-                            return {
-                                dataset: datasetTag, // Penanda 'Single', 'F5', atau 'F6'
-                                Produsen: row[getKey('Produsen')] || row[getKey('Kode Produsen')] || "N/A",
-                                Nama_Distributor: row[getKey('Nama Distributor')] || "Unknown",
-                                Nama_Pengecer: row[getKey('Nama Pengecer')] || "", 
-                                Bulan: parseInt(row[getKey('Bulan')]) || 0,
-                                Provinsi: row[getKey('Nama Provinsi')] || row[getKey('Provinsi')] || "Unknown",
-                                Kabupaten: row[getKey('Nama Kota/Kab')] || row[getKey('Kabupaten')] || row[getKey('Kota')] || "Unknown",
-                                Kecamatan: row[getKey('Nama Kecamatan')] || row[getKey('Kecamatan')] || "Unknown",
-                                Produk: row[getKey('Produk')] || "Unknown",
-                                Stok_Awal: parseIndonesianNumber(row[getKey('Stok Awal')]),
-                                Penebusan: parseIndonesianNumber(row[getKey('Penebusan')]),
-                                Penyaluran: parseIndonesianNumber(row[getKey('Penyaluran')]),
-                                Stok_Akhir: parseIndonesianNumber(row[getKey('Stok Akhir')]),
-                            };
-                        }).filter(item => item.Bulan > 0 && (item.Penebusan > 0 || item.Penyaluran > 0 || item.Stok_Awal > 0 || item.Stok_Akhir > 0));
-                        callback(cleanedData);
-                    }
-                });
+            // Helper: Eksekusi Parsing File (CSV atau Excel)
+            const processFile = (file, datasetTag, callback) => {
+                const fileExt = file.name.split('.').pop().toLowerCase();
+
+                const cleanData = (rawDataArray) => {
+                    return rawDataArray.map(row => {
+                        const getKey = (keyName) => Object.keys(row).find(k => k.trim().toLowerCase() === keyName.toLowerCase());
+                        return {
+                            dataset: datasetTag, // Penanda 'Single', 'F5', atau 'F6'
+                            Produsen: row[getKey('Produsen')] || row[getKey('Kode Produsen')] || "N/A",
+                            Nama_Distributor: row[getKey('Nama Distributor')] || "Unknown",
+                            Nama_Pengecer: row[getKey('Nama Pengecer')] || "", 
+                            Bulan: parseInt(row[getKey('Bulan')]) || 0,
+                            Provinsi: row[getKey('Nama Provinsi')] || row[getKey('Provinsi')] || "Unknown",
+                            Kabupaten: row[getKey('Nama Kota/Kab')] || row[getKey('Kabupaten')] || row[getKey('Kota')] || "Unknown",
+                            Kecamatan: row[getKey('Nama Kecamatan')] || row[getKey('Kecamatan')] || "Unknown",
+                            Produk: row[getKey('Produk')] || "Unknown",
+                            Stok_Awal: parseIndonesianNumber(row[getKey('Stok Awal')]),
+                            Penebusan: parseIndonesianNumber(row[getKey('Penebusan')]),
+                            Penyaluran: parseIndonesianNumber(row[getKey('Penyaluran')]),
+                            Stok_Akhir: parseIndonesianNumber(row[getKey('Stok Akhir')]),
+                        };
+                    }).filter(item => item.Bulan > 0 && (item.Penebusan > 0 || item.Penyaluran > 0 || item.Stok_Awal > 0 || item.Stok_Akhir > 0));
+                };
+
+                if (fileExt === 'csv') {
+                    // Jika CSV, gunakan PapaParse
+                    Papa.parse(file, {
+                        header: true,
+                        skipEmptyLines: true,
+                        complete: (results) => {
+                            callback(cleanData(results.data));
+                        }
+                    });
+                } else if (fileExt === 'xlsx' || fileExt === 'xls') {
+                    // Jika Excel, gunakan SheetJS
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, { type: 'array' });
+                        const firstSheetName = workbook.SheetNames[0]; // Ambil sheet pertama saja
+                        const worksheet = workbook.Sheets[firstSheetName];
+                        const json = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+                        callback(cleanData(json));
+                    };
+                    reader.readAsArrayBuffer(file);
+                } else {
+                    console.error("Format file tidak didukung");
+                    callback([]);
+                }
             };
 
             // Handle Single Upload (Mode Tunggal)
@@ -134,7 +160,7 @@
                 if (!file) return;
                 setIsProcessing(true);
                 
-                processCSV(file, 'Single', (data) => {
+                processFile(file, 'Single', (data) => {
                     setTimeout(() => {
                         setRawData(data);
                         setFilteredData(data);
@@ -151,8 +177,8 @@
                 if (!tempFileF5 || !tempFileF6) return;
                 setIsProcessing(true);
                 
-                processCSV(tempFileF5, 'F5', (dataF5) => {
-                    processCSV(tempFileF6, 'F6', (dataF6) => {
+                processFile(tempFileF5, 'F5', (dataF5) => {
+                    processFile(tempFileF6, 'F6', (dataF6) => {
                         setTimeout(() => {
                             const combinedData = [...dataF5, ...dataF6];
                             setRawData(combinedData);
@@ -279,7 +305,7 @@
                     <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-slate-50 relative overflow-hidden">
                         <div className="flex flex-col items-center animate-pulse">
                             <div className="w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mb-4"></div>
-                            <h2 className="text-xl font-bold text-gray-800">Memproses Data CSV...</h2>
+                            <h2 className="text-xl font-bold text-gray-800">Memproses Data...</h2>
                             <p className="text-gray-500 mt-2">Menyiapkan visualisasi dashboard Anda</p>
                         </div>
                     </div>
@@ -302,7 +328,7 @@
                                 <label className="cursor-pointer bg-blue-600 hover:bg-blue-700 text-white px-6 py-4 rounded-xl flex items-center justify-center gap-3 transition-all shadow-lg shadow-blue-200">
                                     <IconUpload />
                                     <span className="font-semibold text-lg tracking-wide">Mode Tunggal (F5 / F6)</span>
-                                    <input type="file" accept=".csv" onChange={handleSingleUpload} className="hidden" />
+                                    <input type="file" accept=".csv, .xlsx, .xls" onChange={handleSingleUpload} className="hidden" />
                                 </label>
                                 
                                 <button onClick={() => setAppMode('compare_setup')} className="bg-white hover:bg-fuchsia-50 text-fuchsia-600 border-2 border-fuchsia-600 px-6 py-4 rounded-xl flex items-center justify-center gap-3 transition-all shadow-md">
@@ -310,6 +336,10 @@
                                     <span className="font-semibold text-lg tracking-wide">Mode Perbandingan (F5 & F6)</span>
                                 </button>
                             </div>
+                            
+                            <p className="mt-8 text-xs text-gray-400 font-medium bg-gray-50 py-2 rounded-lg">
+                                Mendukung format file .csv, .xlsx, dan .xls
+                            </p>
                         </div>
                         <footer className="text-center mt-12 text-xs sm:text-sm text-gray-500 font-medium w-full">
                             <p className="whitespace-nowrap sm:whitespace-normal">Copyright &copy; 2025 Adm Pemasaran & Penjualan</p>
@@ -338,16 +368,16 @@
                                 <label className={`cursor-pointer flex flex-col items-center justify-center p-8 rounded-2xl border-2 border-dashed transition-all ${tempFileF5 ? 'border-emerald-500 bg-emerald-50' : 'border-blue-300 hover:bg-blue-50'}`}>
                                     {tempFileF5 ? <div className="mb-2"><IconCheck /></div> : <div className="text-blue-400 mb-2"><IconUpload /></div>}
                                     <span className={`font-bold ${tempFileF5 ? 'text-emerald-700' : 'text-blue-600'}`}>1. Upload Data F5</span>
-                                    <span className="text-xs text-gray-500 mt-1 truncate max-w-full px-2">{tempFileF5 ? tempFileF5.name : 'Pilih file CSV'}</span>
-                                    <input type="file" accept=".csv" onChange={(e) => setTempFileF5(e.target.files[0])} className="hidden" />
+                                    <span className="text-xs text-gray-500 mt-1 truncate max-w-full px-2">{tempFileF5 ? tempFileF5.name : 'Pilih file CSV/Excel'}</span>
+                                    <input type="file" accept=".csv, .xlsx, .xls" onChange={(e) => setTempFileF5(e.target.files[0])} className="hidden" />
                                 </label>
 
                                 {/* Upload Box F6 */}
                                 <label className={`cursor-pointer flex flex-col items-center justify-center p-8 rounded-2xl border-2 border-dashed transition-all ${tempFileF6 ? 'border-emerald-500 bg-emerald-50' : 'border-fuchsia-300 hover:bg-fuchsia-50'}`}>
                                     {tempFileF6 ? <div className="mb-2"><IconCheck /></div> : <div className="text-fuchsia-400 mb-2"><IconUpload /></div>}
                                     <span className={`font-bold ${tempFileF6 ? 'text-emerald-700' : 'text-fuchsia-600'}`}>2. Upload Data F6</span>
-                                    <span className="text-xs text-gray-500 mt-1 truncate max-w-full px-2">{tempFileF6 ? tempFileF6.name : 'Pilih file CSV'}</span>
-                                    <input type="file" accept=".csv" onChange={(e) => setTempFileF6(e.target.files[0])} className="hidden" />
+                                    <span className="text-xs text-gray-500 mt-1 truncate max-w-full px-2">{tempFileF6 ? tempFileF6.name : 'Pilih file CSV/Excel'}</span>
+                                    <input type="file" accept=".csv, .xlsx, .xls" onChange={(e) => setTempFileF6(e.target.files[0])} className="hidden" />
                                 </label>
                             </div>
                             
