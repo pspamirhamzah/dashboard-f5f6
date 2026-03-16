@@ -94,57 +94,134 @@
             const [metricWilayah, setMetricWilayah] = useState("Penyaluran");
             const [metricDistributor, setMetricDistributor] = useState("Penyaluran");
 
-            // Helper: Parsing angka format Indonesia
+            // Helper: Parsing angka yang fleksibel (Deteksi Otomatis Format Indo/US)
             const parseIndonesianNumber = (val) => {
                 if (val === undefined || val === null || val === '') return 0;
                 if (typeof val === 'number') return val;
-                let strVal = val.toString().trim().replace(/\./g, '').replace(/,/g, '.');
+                
+                let strVal = val.toString().trim();
+                
+                // Jika mengandung titik dan koma (misal: 1.000,50 atau 1,000.50)
+                if (strVal.includes(',') && strVal.includes('.')) {
+                    const lastComma = strVal.lastIndexOf(',');
+                    const lastDot = strVal.lastIndexOf('.');
+                    if (lastComma > lastDot) {
+                        strVal = strVal.replace(/\./g, '').replace(/,/g, '.'); // Format Indo
+                    } else {
+                        strVal = strVal.replace(/,/g, ''); // Format US
+                    }
+                } 
+                // Jika hanya mengandung koma (misal: 12,8)
+                else if (strVal.includes(',')) {
+                    strVal = strVal.replace(/,/g, '.');
+                } 
+                // Jika mengandung lebih dari 1 titik (misal: 1.000.000)
+                else if (strVal.split('.').length > 2) {
+                    strVal = strVal.replace(/\./g, '');
+                }
+                
                 return parseFloat(strVal) || 0;
             };
 
-            // Helper: Eksekusi Parsing File (CSV atau Excel)
+            // Helper: Eksekusi Parsing File dengan Deteksi Header Cerdas
             const processFile = (file, datasetTag, callback) => {
                 const fileExt = file.name.split('.').pop().toLowerCase();
 
-                const cleanData = (rawDataArray) => {
-                    return rawDataArray.map(row => {
-                        const getKey = (keyName) => Object.keys(row).find(k => k.trim().toLowerCase() === keyName.toLowerCase());
-                        return {
-                            dataset: datasetTag, // Penanda 'Single', 'F5', atau 'F6'
-                            Produsen: row[getKey('Produsen')] || row[getKey('Kode Produsen')] || "N/A",
-                            Nama_Distributor: row[getKey('Nama Distributor')] || "Unknown",
-                            Nama_Pengecer: row[getKey('Nama Pengecer')] || "", 
-                            Bulan: parseInt(row[getKey('Bulan')]) || 0,
-                            Provinsi: row[getKey('Nama Provinsi')] || row[getKey('Provinsi')] || "Unknown",
-                            Kabupaten: row[getKey('Nama Kota/Kab')] || row[getKey('Kabupaten')] || row[getKey('Kota')] || "Unknown",
-                            Kecamatan: row[getKey('Nama Kecamatan')] || row[getKey('Kecamatan')] || "Unknown",
-                            Produk: row[getKey('Produk')] || "Unknown",
-                            Stok_Awal: parseIndonesianNumber(row[getKey('Stok Awal')]),
-                            Penebusan: parseIndonesianNumber(row[getKey('Penebusan')]),
-                            Penyaluran: parseIndonesianNumber(row[getKey('Penyaluran')]),
-                            Stok_Akhir: parseIndonesianNumber(row[getKey('Stok Akhir')]),
-                        };
-                    }).filter(item => item.Bulan > 0 && (item.Penebusan > 0 || item.Penyaluran > 0 || item.Stok_Awal > 0 || item.Stok_Akhir > 0));
+                const cleanData = (arrayOfArrays) => {
+                    // Cari baris header yang sebenarnya (karena ada baris Grand Total di atas)
+                    let headerIndex = -1;
+                    for (let i = 0; i < Math.min(arrayOfArrays.length, 10); i++) {
+                        const rowStr = (arrayOfArrays[i] || []).join('').toLowerCase();
+                        if (rowStr.includes('produsen') || rowStr.includes('distributor') || rowStr.includes('provinsi')) {
+                            headerIndex = i;
+                            break;
+                        }
+                    }
+                    if (headerIndex === -1) headerIndex = 0; // Fallback jika tidak ketemu
+
+                    const headers = arrayOfArrays[headerIndex].map(h => typeof h === 'string' ? h.trim().toLowerCase() : '');
+                    
+                    // Fungsi pencari urutan index kolom yang fleksibel
+                    const getColIdx = (keys) => {
+                        for (let k of keys) {
+                            const idx = headers.findIndex(h => h === k);
+                            if (idx !== -1) return idx;
+                        }
+                        return -1;
+                    };
+
+                    const cols = {
+                        produsen: getColIdx(['produsen', 'kode produsen']),
+                        distributor: getColIdx(['nama distributor', 'distributor']),
+                        pengecer: getColIdx(['nama pengecer', 'pengecer']),
+                        bulan: getColIdx(['bulan']),
+                        provinsi: getColIdx(['nama provinsi', 'provinsi']),
+                        kabupaten: getColIdx(['nama kota/kabupaten', 'nama kota/kab', 'kabupaten', 'kota']),
+                        kecamatan: getColIdx(['nama kecamatan', 'kecamatan']),
+                        produk: getColIdx(['produk']),
+                        stokAwal: getColIdx(['stok awal']),
+                        penebusan: getColIdx(['penebusan']),
+                        penyaluran: getColIdx(['penyaluran']),
+                        stokAkhir: getColIdx(['stok akhir'])
+                    };
+
+                    const formattedData = [];
+                    // Mulai membaca data tepat 1 baris di bawah judul kolom
+                    for (let i = headerIndex + 1; i < arrayOfArrays.length; i++) {
+                        const row = arrayOfArrays[i];
+                        if (!row || row.length === 0) continue;
+
+                        const bulanVal = parseInt(row[cols.bulan]) || 0;
+                        if (bulanVal <= 0) continue; // Skip jika bulan kosong/tidak valid
+
+                        const stokAwal = parseIndonesianNumber(row[cols.stokAwal]);
+                        const penebusan = parseIndonesianNumber(row[cols.penebusan]);
+                        const penyaluran = parseIndonesianNumber(row[cols.penyaluran]);
+                        const stokAkhir = parseIndonesianNumber(row[cols.stokAkhir]);
+
+                        if (penebusan > 0 || penyaluran > 0 || stokAwal > 0 || stokAkhir > 0) {
+                            formattedData.push({
+                                dataset: datasetTag,
+                                Produsen: cols.produsen !== -1 ? (row[cols.produsen] || "N/A") : "N/A",
+                                Nama_Distributor: cols.distributor !== -1 ? (row[cols.distributor] || "Unknown") : "Unknown",
+                                Nama_Pengecer: cols.pengecer !== -1 ? (row[cols.pengecer] || "") : "",
+                                Bulan: bulanVal,
+                                Provinsi: cols.provinsi !== -1 ? (row[cols.provinsi] || "Unknown") : "Unknown",
+                                Kabupaten: cols.kabupaten !== -1 ? (row[cols.kabupaten] || "Unknown") : "Unknown",
+                                Kecamatan: cols.kecamatan !== -1 ? (row[cols.kecamatan] || "Unknown") : "Unknown",
+                                Produk: cols.produk !== -1 ? (row[cols.produk] || "Unknown") : "Unknown",
+                                Stok_Awal: stokAwal,
+                                Penebusan: penebusan,
+                                Penyaluran: penyaluran,
+                                Stok_Akhir: stokAkhir
+                            });
+                        }
+                    }
+                    return formattedData;
                 };
 
                 if (fileExt === 'csv') {
-                    // Jika CSV, gunakan PapaParse
-                    Papa.parse(file, {
-                        header: true,
-                        skipEmptyLines: true,
-                        complete: (results) => {
-                            callback(cleanData(results.data));
-                        }
-                    });
+                    // Gunakan FileReader dan parse sebagai array of arrays
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        Papa.parse(e.target.result, {
+                            header: false, // Diganti false agar bisa mengabaikan baris Total
+                            skipEmptyLines: true,
+                            complete: (results) => {
+                                callback(cleanData(results.data));
+                            }
+                        });
+                    };
+                    reader.readAsText(file);
                 } else if (fileExt === 'xlsx' || fileExt === 'xls') {
-                    // Jika Excel, gunakan SheetJS
                     const reader = new FileReader();
                     reader.onload = (e) => {
                         const data = new Uint8Array(e.target.result);
                         const workbook = XLSX.read(data, { type: 'array' });
-                        const firstSheetName = workbook.SheetNames[0]; // Ambil sheet pertama saja
+                        const firstSheetName = workbook.SheetNames[0]; 
                         const worksheet = workbook.Sheets[firstSheetName];
-                        const json = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+                        // Parsing sbg array of arrays (header: 1)
+                        const json = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" }); 
                         callback(cleanData(json));
                     };
                     reader.readAsArrayBuffer(file);
