@@ -4,12 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard F5/F6</title>
-
-    <meta property="og:title" content="Dashboard F5/F6 Interaktif">
-    <meta property="og:description" content="Monitoring Pupuk Subsidi berbasis data F5/F6">
-    <meta property="og:image" content="https://raw.githubusercontent.com/pspamirhamzah/dashboard-f5f6/main/public/thumbnail.png">
-    <meta property="og:url" content="https://github.com/pspamirhamzah/dashboard-f5f6">
-    <meta property="og:type" content="website">
     
     <!-- React & ReactDOM (v18) -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -56,7 +50,7 @@
     <script type="text/babel">
         const { useState, useEffect, useMemo } = React;
         const { 
-            AreaChart, Area, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer 
+            AreaChart, Area, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar 
         } = window.Recharts || {};
 
         const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
@@ -70,12 +64,22 @@
         const IconUsers = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>;
         const IconFilter = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>;
         const IconChevronDown = () => <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>;
+        const IconCompare = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 3h5v5M4 21v-7a4 4 0 0 1 4-4h11M8 21H3v-5M20 3v7a4 4 0 0 1-4 4H5"/></svg>;
+        const IconCheck = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>;
 
         const App = () => {
-            // State awal dibuat kosong (array kosong)
+            // App Modes: 'welcome' | 'compare_setup' | 'dashboard'
+            const [appMode, setAppMode] = useState('welcome');
+            const [dashboardType, setDashboardType] = useState('single'); // 'single' | 'compare'
+            
+            // Data States
             const [rawData, setRawData] = useState([]);
             const [filteredData, setFilteredData] = useState([]);
-            const [isProcessing, setIsProcessing] = useState(false); // State untuk animasi loading
+            const [isProcessing, setIsProcessing] = useState(false);
+
+            // Temporary states for Compare Upload
+            const [tempFileF5, setTempFileF5] = useState(null);
+            const [tempFileF6, setTempFileF6] = useState(null);
 
             // Filter States
             const [filterProv, setFilterProv] = useState("All");
@@ -87,183 +91,185 @@
             const [metricWilayah, setMetricWilayah] = useState("Penyaluran");
             const [metricDistributor, setMetricDistributor] = useState("Penyaluran");
 
-            // Fungsi untuk parsing angka format Indonesia (1.000,75 menjadi float 1000.75)
+            // Helper: Parsing angka format Indonesia
             const parseIndonesianNumber = (val) => {
                 if (val === undefined || val === null || val === '') return 0;
                 if (typeof val === 'number') return val;
-                
-                let strVal = val.toString().trim();
-                // Hapus titik ribuan
-                strVal = strVal.replace(/\./g, '');
-                // Ganti koma desimal menjadi titik
-                strVal = strVal.replace(/,/g, '.');
-                
+                let strVal = val.toString().trim().replace(/\./g, '').replace(/,/g, '.');
                 return parseFloat(strVal) || 0;
             };
 
-            // Handle File Upload (Bisa F5 dan F6)
-            const handleFileUpload = (e) => {
-                const file = e.target.files[0];
-                if (!file) return;
-
-                // Tampilkan layar memproses
-                setIsProcessing(true);
-
+            // Helper: Eksekusi Papa Parse
+            const processCSV = (file, datasetTag, callback) => {
                 Papa.parse(file, {
                     header: true,
                     skipEmptyLines: true,
-                    // PapaParse akan mendeteksi separator otomatis (; , atau \t)
                     complete: (results) => {
                         const cleanedData = results.data.map(row => {
-                            // Fungsi fleksibel ambil nama kolom (case insensitive)
                             const getKey = (keyName) => Object.keys(row).find(k => k.trim().toLowerCase() === keyName.toLowerCase());
-
                             return {
+                                dataset: datasetTag, // Penanda 'Single', 'F5', atau 'F6'
                                 Produsen: row[getKey('Produsen')] || row[getKey('Kode Produsen')] || "N/A",
                                 Nama_Distributor: row[getKey('Nama Distributor')] || "Unknown",
-                                // Jika F6, ambil Nama Pengecer
                                 Nama_Pengecer: row[getKey('Nama Pengecer')] || "", 
                                 Bulan: parseInt(row[getKey('Bulan')]) || 0,
-                                // F6 = Nama Provinsi, F5 = Provinsi
                                 Provinsi: row[getKey('Nama Provinsi')] || row[getKey('Provinsi')] || "Unknown",
                                 Kabupaten: row[getKey('Nama Kota/Kab')] || row[getKey('Kabupaten')] || row[getKey('Kota')] || "Unknown",
                                 Kecamatan: row[getKey('Nama Kecamatan')] || row[getKey('Kecamatan')] || "Unknown",
                                 Produk: row[getKey('Produk')] || "Unknown",
-                                
                                 Stok_Awal: parseIndonesianNumber(row[getKey('Stok Awal')]),
                                 Penebusan: parseIndonesianNumber(row[getKey('Penebusan')]),
                                 Penyaluran: parseIndonesianNumber(row[getKey('Penyaluran')]),
                                 Stok_Akhir: parseIndonesianNumber(row[getKey('Stok Akhir')]),
                             };
-                        }).filter(item => 
-                            item.Bulan > 0 && 
-                            // Menyaring agar baris dengan semua nilai 0 tidak dimasukkan ke dalam data
-                            (item.Penebusan > 0 || item.Penyaluran > 0 || item.Stok_Awal > 0 || item.Stok_Akhir > 0)
-                        );
-
-                        // Gunakan setTimeout kecil agar animasi loading sempat terlihat oleh user (UX yang lebih baik)
-                        setTimeout(() => {
-                            setRawData(cleanedData);
-                            setFilteredData(cleanedData);
-                            // Reset filters on new upload
-                            setFilterProv("All");
-                            setFilterKab("All");
-                            setFilterProd("All");
-                            setFilterDistributor("All");
-                            
-                            // Matikan layar memproses
-                            setIsProcessing(false);
-                        }, 800);
+                        }).filter(item => item.Bulan > 0 && (item.Penebusan > 0 || item.Penyaluran > 0 || item.Stok_Awal > 0 || item.Stok_Akhir > 0));
+                        callback(cleanedData);
                     }
                 });
             };
 
-            // Main Filter Logic
+            // Handle Single Upload (Mode Tunggal)
+            const handleSingleUpload = (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                setIsProcessing(true);
+                
+                processCSV(file, 'Single', (data) => {
+                    setTimeout(() => {
+                        setRawData(data);
+                        setFilteredData(data);
+                        setDashboardType('single');
+                        setAppMode('dashboard');
+                        setIsProcessing(false);
+                        resetFilters();
+                    }, 800);
+                });
+            };
+
+            // Handle Multi Upload Eksekusi (Mode Perbandingan)
+            const executeComparison = () => {
+                if (!tempFileF5 || !tempFileF6) return;
+                setIsProcessing(true);
+                
+                processCSV(tempFileF5, 'F5', (dataF5) => {
+                    processCSV(tempFileF6, 'F6', (dataF6) => {
+                        setTimeout(() => {
+                            const combinedData = [...dataF5, ...dataF6];
+                            setRawData(combinedData);
+                            setFilteredData(combinedData);
+                            setDashboardType('compare');
+                            setAppMode('dashboard');
+                            setIsProcessing(false);
+                            resetFilters();
+                        }, 800);
+                    });
+                });
+            };
+
+            const resetFilters = () => {
+                setFilterProv("All");
+                setFilterKab("All");
+                setFilterProd("All");
+                setFilterDistributor("All");
+            };
+
+            // Main Filter Logic (Berlaku untuk Single & Compare)
             useEffect(() => {
                 let temp = rawData;
-                
-                if (filterProv !== "All") {
-                    temp = temp.filter(d => d.Provinsi === filterProv);
-                }
-                if (filterKab !== "All") {
-                    temp = temp.filter(d => d.Kabupaten === filterKab);
-                }
-                if (filterProd !== "All") {
-                    temp = temp.filter(d => d.Produk === filterProd);
-                }
-                if (filterDistributor !== "All") {
-                    temp = temp.filter(d => d.Nama_Distributor === filterDistributor);
-                }
-
+                if (filterProv !== "All") temp = temp.filter(d => d.Provinsi === filterProv);
+                if (filterKab !== "All") temp = temp.filter(d => d.Kabupaten === filterKab);
+                if (filterProd !== "All") temp = temp.filter(d => d.Produk === filterProd);
+                if (filterDistributor !== "All") temp = temp.filter(d => d.Nama_Distributor === filterDistributor);
                 setFilteredData(temp);
             }, [filterProv, filterKab, filterProd, filterDistributor, rawData]);
 
-            // Aggregations
-            const kpi = useMemo(() => {
-                const totalPenyaluran = filteredData.reduce((acc, curr) => acc + curr.Penyaluran, 0);
-                const totalPenebusan = filteredData.reduce((acc, curr) => acc + curr.Penebusan, 0);
-                const avgStokAkhir = filteredData.length ? filteredData.reduce((acc, curr) => acc + curr.Stok_Akhir, 0) / filteredData.length : 0;
-                const uniqueDistributors = new Set(filteredData.map(d => d.Nama_Distributor)).size;
-                return { totalPenyaluran, totalPenebusan, avgStokAkhir, uniqueDistributors };
+            // --- DATA AGGREGATION (SINGLE MODE) ---
+            const kpiSingle = useMemo(() => {
+                return {
+                    totalPenyaluran: filteredData.reduce((acc, curr) => acc + curr.Penyaluran, 0),
+                    totalPenebusan: filteredData.reduce((acc, curr) => acc + curr.Penebusan, 0),
+                    avgStokAkhir: filteredData.length ? filteredData.reduce((acc, curr) => acc + curr.Stok_Akhir, 0) / filteredData.length : 0,
+                    uniqueDistributors: new Set(filteredData.map(d => d.Nama_Distributor)).size
+                };
             }, [filteredData]);
 
+            // --- DATA AGGREGATION (COMPARE MODE) ---
+            const kpiCompare = useMemo(() => {
+                const dataF5 = filteredData.filter(d => d.dataset === 'F5');
+                const dataF6 = filteredData.filter(d => d.dataset === 'F6');
+                return {
+                    F5_Penyaluran: dataF5.reduce((acc, curr) => acc + curr.Penyaluran, 0),
+                    F6_Penyaluran: dataF6.reduce((acc, curr) => acc + curr.Penyaluran, 0),
+                    F5_Penebusan: dataF5.reduce((acc, curr) => acc + curr.Penebusan, 0),
+                    F6_Penebusan: dataF6.reduce((acc, curr) => acc + curr.Penebusan, 0),
+                };
+            }, [filteredData]);
+
+            // Trend Chart Data (Dinamis: AreaChart utk Single, BarChart utk Compare)
             const trendData = useMemo(() => {
                 const grouped = {};
                 filteredData.forEach(d => {
-                    if (!grouped[d.Bulan]) grouped[d.Bulan] = { name: MONTH_NAMES[d.Bulan-1], Penyaluran: 0, Penebusan: 0 };
-                    grouped[d.Bulan].Penyaluran += d.Penyaluran;
-                    grouped[d.Bulan].Penebusan += d.Penebusan;
+                    if (!grouped[d.Bulan]) grouped[d.Bulan] = { name: MONTH_NAMES[d.Bulan-1], Penyaluran: 0, Penebusan: 0, F5_Penyaluran: 0, F6_Penyaluran: 0 };
+                    if (dashboardType === 'single') {
+                        grouped[d.Bulan].Penyaluran += d.Penyaluran;
+                        grouped[d.Bulan].Penebusan += d.Penebusan;
+                    } else {
+                        if (d.dataset === 'F5') grouped[d.Bulan].F5_Penyaluran += d.Penyaluran;
+                        if (d.dataset === 'F6') grouped[d.Bulan].F6_Penyaluran += d.Penyaluran;
+                    }
                 });
                 return Object.values(grouped).sort((a,b) => MONTH_NAMES.indexOf(a.name) - MONTH_NAMES.indexOf(b.name));
-            }, [filteredData]);
+            }, [filteredData, dashboardType]);
 
+            // Product Data
             const productData = useMemo(() => {
                 const grouped = {};
                 filteredData.forEach(d => {
-                    if (!grouped[d.Produk]) grouped[d.Produk] = 0;
-                    grouped[d.Produk] += d.Penyaluran;
+                    if (!grouped[d.Produk]) grouped[d.Produk] = { name: d.Produk, value: 0, F5_Value: 0, F6_Value: 0 };
+                    if (dashboardType === 'single') {
+                        grouped[d.Produk].value += d.Penyaluran;
+                    } else {
+                        if (d.dataset === 'F5') grouped[d.Produk].F5_Value += d.Penyaluran;
+                        if (d.dataset === 'F6') grouped[d.Produk].F6_Value += d.Penyaluran;
+                    }
                 });
-                return Object.entries(grouped)
-                    .map(([name, value]) => ({ name, value }))
-                    .sort((a,b) => b.value - a.value);
-            }, [filteredData]);
+                return Object.values(grouped).sort((a,b) => (b.value || b.F6_Value) - (a.value || a.F6_Value));
+            }, [filteredData, dashboardType]);
 
-            // Aggregation for Top Wilayah (Dinamis: Provinsi atau Kabupaten)
+            // Wilayah & Distributor Data (Tetap menggunakan penjumlahan general untuk list)
             const wilayahData = useMemo(() => {
                 const grouped = {};
-                // Jika filter provinsi aktif, kelompokkan berdasarkan Kabupaten. Jika tidak, berdasarkan Provinsi.
                 const groupKey = filterProv === "All" ? "Provinsi" : "Kabupaten";
-
                 filteredData.forEach(d => {
                     if (!grouped[d[groupKey]]) grouped[d[groupKey]] = 0;
                     grouped[d[groupKey]] += d[metricWilayah]; 
                 });
-                return Object.entries(grouped)
-                    .map(([name, value]) => ({ name, value }))
-                    .sort((a,b) => b.value - a.value)
-                    .slice(0, 10); 
+                return Object.entries(grouped).map(([name, value]) => ({ name, value })).sort((a,b) => b.value - a.value).slice(0, 10); 
             }, [filteredData, metricWilayah, filterProv]);
 
-            // Aggregation for Top Distributor
             const distributorData = useMemo(() => {
                 const grouped = {};
                 filteredData.forEach(d => {
                     if (!grouped[d.Nama_Distributor]) grouped[d.Nama_Distributor] = 0;
                     grouped[d.Nama_Distributor] += d[metricDistributor];
                 });
-                return Object.entries(grouped)
-                    .map(([name, value]) => ({ name, value }))
-                    .sort((a,b) => b.value - a.value)
-                    .slice(0, 10); 
+                return Object.entries(grouped).map(([name, value]) => ({ name, value })).sort((a,b) => b.value - a.value).slice(0, 10); 
             }, [filteredData, metricDistributor]);
 
-            // Cek apakah data yang aktif saat ini punya kolom Pengecer (F6) - Menggunakan rawData agar stabil
-            const isDataF6 = useMemo(() => {
-                return rawData.some(d => d.Nama_Pengecer && d.Nama_Pengecer.trim() !== "");
-            }, [rawData]);
-
-            // Options generation (Sort alphabetically)
+            // Filter Options
             const uniqueProvinces = useMemo(() => [...new Set(rawData.map(d => d.Provinsi))].filter(Boolean).sort(), [rawData]);
-            
-            // Generate Kabupaten berdasarkan Provinsi yang dipilih
             const uniqueKabupaten = useMemo(() => {
                 let options = rawData;
                 if (filterProv !== "All") options = options.filter(d => d.Provinsi === filterProv);
                 return [...new Set(options.map(d => d.Kabupaten))].filter(Boolean).sort();
             }, [rawData, filterProv]);
-
             const uniqueProducts = useMemo(() => [...new Set(rawData.map(d => d.Produk))].filter(Boolean).sort(), [rawData]);
             const uniqueDistributors = useMemo(() => [...new Set(rawData.map(d => d.Nama_Distributor))].filter(Boolean).sort(), [rawData]);
 
             const formatNumber = (num) => new Intl.NumberFormat('id-ID', { maximumFractionDigits: 2 }).format(num);
-
-            // Formatter khusus untuk sumbu Y pada grafik (mempersingkat ribuan/jutaan)
             const formatYAxis = (tickItem) => {
-                if (tickItem >= 1000000) {
-                    return (tickItem / 1000000).toLocaleString('id-ID', { maximumFractionDigits: 1 }) + ' jt';
-                } else if (tickItem >= 1000) {
-                    return (tickItem / 1000).toLocaleString('id-ID', { maximumFractionDigits: 1 }) + ' rb';
-                }
+                if (tickItem >= 1000000) return (tickItem / 1000000).toLocaleString('id-ID', { maximumFractionDigits: 1 }) + ' jt';
+                else if (tickItem >= 1000) return (tickItem / 1000).toLocaleString('id-ID', { maximumFractionDigits: 1 }) + ' rb';
                 return tickItem.toLocaleString('id-ID');
             };
 
@@ -280,31 +286,31 @@
                 );
             }
 
-            // --- TAMPILAN AWAL SEBELUM UPLOAD FILE (EMPTY STATE) ---
-            if (rawData.length === 0) {
+            // --- TAMPILAN AWAL (WELCOME SCREEN) ---
+            if (appMode === 'welcome') {
                 return (
                     <div className="min-h-screen flex flex-col items-center justify-center p-6 relative overflow-hidden">
-                        {/* Background Decoration */}
                         <div className="absolute top-0 left-0 w-full h-96 bg-blue-600 rounded-b-[100px] opacity-10 -z-10"></div>
-                        
                         <div className="bg-white p-10 rounded-3xl shadow-2xl max-w-lg w-full text-center border-t-8 border-blue-600 relative z-10">
                             <div className="w-24 h-24 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                                <IconTrending />
                             </div>
-                            <h2 className="text-3xl font-extrabold text-gray-800 mb-3">Selamat Datang</h2>
-                            <p className="text-gray-500 mb-8 leading-relaxed">Silakan unggah file data <strong className="text-blue-600">F5</strong> atau <strong className="text-blue-600">F6</strong> Anda untuk mulai menampilkan visualisasi dashboard analitik.</p>
+                            <h2 className="text-3xl font-extrabold text-gray-800 mb-3">Dashboard Distribusi</h2>
+                            <p className="text-gray-500 mb-8 leading-relaxed">Pilih mode dashboard untuk mulai memvisualisasikan data penyaluran pupuk.</p>
                             
-                            <label className="cursor-pointer inline-flex bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-xl items-center gap-3 transition-all shadow-lg shadow-blue-200 group">
-                                <span className="font-semibold text-lg tracking-wide">Pilih File CSV</span>
-                                <input type="file" accept=".csv" onChange={handleFileUpload} className="hidden" />
-                            </label>
-                            
-                            <p className="mt-8 text-xs text-gray-400 font-medium bg-gray-50 py-2 rounded-lg">
-                                Pastikan file menggunakan format (.csv)
-                            </p>
+                            <div className="flex flex-col gap-4">
+                                <label className="cursor-pointer bg-blue-600 hover:bg-blue-700 text-white px-6 py-4 rounded-xl flex items-center justify-center gap-3 transition-all shadow-lg shadow-blue-200">
+                                    <IconUpload />
+                                    <span className="font-semibold text-lg tracking-wide">Mode Tunggal (F5 / F6)</span>
+                                    <input type="file" accept=".csv" onChange={handleSingleUpload} className="hidden" />
+                                </label>
+                                
+                                <button onClick={() => setAppMode('compare_setup')} className="bg-white hover:bg-fuchsia-50 text-fuchsia-600 border-2 border-fuchsia-600 px-6 py-4 rounded-xl flex items-center justify-center gap-3 transition-all shadow-md">
+                                    <IconCompare />
+                                    <span className="font-semibold text-lg tracking-wide">Mode Perbandingan (F5 & F6)</span>
+                                </button>
+                            </div>
                         </div>
-
-                        {/* Footer on Empty State */}
                         <footer className="text-center mt-12 text-xs sm:text-sm text-gray-500 font-medium w-full">
                             <p className="whitespace-nowrap sm:whitespace-normal">Copyright &copy; 2025 Adm Pemasaran & Penjualan</p>
                             <p className="mt-1">Design by 00.0034</p>
@@ -313,27 +319,71 @@
                 );
             }
 
-            // --- TAMPILAN DASHBOARD SETELAH UPLOAD FILE ---
+            // --- TAMPILAN SETUP MULTI-UPLOAD (PERBANDINGAN) ---
+            if (appMode === 'compare_setup') {
+                return (
+                    <div className="min-h-screen flex flex-col items-center justify-center p-6 relative overflow-hidden">
+                        <div className="absolute top-0 left-0 w-full h-96 bg-fuchsia-600 rounded-b-[100px] opacity-10 -z-10"></div>
+                        <div className="bg-white p-10 rounded-3xl shadow-2xl max-w-2xl w-full text-center border-t-8 border-fuchsia-600 relative z-10 animate-fade-in-up">
+                            <div className="flex justify-between items-center mb-8">
+                                <button onClick={() => setAppMode('welcome')} className="text-gray-400 hover:text-gray-800 transition font-medium text-sm flex items-center gap-1">
+                                    &larr; Kembali
+                                </button>
+                                <h2 className="text-2xl font-extrabold text-gray-800">Setup Perbandingan</h2>
+                                <div className="w-16"></div> {/* Spacer */}
+                            </div>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                                {/* Upload Box F5 */}
+                                <label className={`cursor-pointer flex flex-col items-center justify-center p-8 rounded-2xl border-2 border-dashed transition-all ${tempFileF5 ? 'border-emerald-500 bg-emerald-50' : 'border-blue-300 hover:bg-blue-50'}`}>
+                                    {tempFileF5 ? <div className="mb-2"><IconCheck /></div> : <div className="text-blue-400 mb-2"><IconUpload /></div>}
+                                    <span className={`font-bold ${tempFileF5 ? 'text-emerald-700' : 'text-blue-600'}`}>1. Upload Data F5</span>
+                                    <span className="text-xs text-gray-500 mt-1 truncate max-w-full px-2">{tempFileF5 ? tempFileF5.name : 'Pilih file CSV'}</span>
+                                    <input type="file" accept=".csv" onChange={(e) => setTempFileF5(e.target.files[0])} className="hidden" />
+                                </label>
+
+                                {/* Upload Box F6 */}
+                                <label className={`cursor-pointer flex flex-col items-center justify-center p-8 rounded-2xl border-2 border-dashed transition-all ${tempFileF6 ? 'border-emerald-500 bg-emerald-50' : 'border-fuchsia-300 hover:bg-fuchsia-50'}`}>
+                                    {tempFileF6 ? <div className="mb-2"><IconCheck /></div> : <div className="text-fuchsia-400 mb-2"><IconUpload /></div>}
+                                    <span className={`font-bold ${tempFileF6 ? 'text-emerald-700' : 'text-fuchsia-600'}`}>2. Upload Data F6</span>
+                                    <span className="text-xs text-gray-500 mt-1 truncate max-w-full px-2">{tempFileF6 ? tempFileF6.name : 'Pilih file CSV'}</span>
+                                    <input type="file" accept=".csv" onChange={(e) => setTempFileF6(e.target.files[0])} className="hidden" />
+                                </label>
+                            </div>
+                            
+                            <button 
+                                onClick={executeComparison} 
+                                disabled={!tempFileF5 || !tempFileF6}
+                                className={`w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition-all ${tempFileF5 && tempFileF6 ? 'bg-fuchsia-600 hover:bg-fuchsia-700 text-white shadow-lg shadow-fuchsia-200' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}
+                            >
+                                <IconCompare /> Tampilkan Perbandingan
+                            </button>
+                        </div>
+                    </div>
+                );
+            }
+
+            // --- TAMPILAN DASHBOARD UTAMA (SINGLE & COMPARE) ---
             return (
                 <div className="min-h-screen p-6 relative animate-fade-in-up">
                     {/* Header */}
                     <div className="flex flex-col md:flex-row justify-between items-center mb-8 bg-white p-6 rounded-xl card-shadow border-l-4 border-blue-600">
                         <div>
                             <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-                                <span className="text-blue-600"><IconTrending /></span>
+                                <span className={dashboardType === 'compare' ? 'text-fuchsia-600' : 'text-blue-600'}>
+                                    {dashboardType === 'compare' ? <IconCompare /> : <IconTrending />}
+                                </span>
                                 Dashboard F5/F6
-                                <span className={`ml-2 text-xs font-semibold px-2.5 py-1 rounded-full border ${isDataF6 ? 'bg-fuchsia-100 text-fuchsia-800 border-fuchsia-200' : 'bg-blue-100 text-blue-800 border-blue-200'}`}>
-                                    {isDataF6 ? 'Mode: Data F6' : 'Mode: Data F5'}
+                                <span className={`ml-2 text-xs font-semibold px-2.5 py-1 rounded-full border ${dashboardType === 'compare' ? 'bg-fuchsia-100 text-fuchsia-800 border-fuchsia-200' : 'bg-blue-100 text-blue-800 border-blue-200'}`}>
+                                    {dashboardType === 'compare' ? 'Mode: Perbandingan' : 'Mode: Tunggal'}
                                 </span>
                             </h1>
                             <p className="text-gray-500 text-sm mt-1">Monitoring Penebusan & Penyaluran Pupuk Bersubsidi</p>
                         </div>
-                        <div className="flex gap-4 mt-4 md:mt-0 items-center">
-                            <label className="cursor-pointer bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg flex items-center gap-2 transition shadow-md shadow-blue-200 group">
-                                <IconUpload />
-                                <span className="font-medium">Upload Data F5/F6 (.csv)</span>
-                                <input type="file" accept=".csv" onChange={handleFileUpload} className="hidden" />
-                            </label>
+                        <div className="flex gap-3 mt-4 md:mt-0">
+                            <button onClick={() => { setAppMode('welcome'); setTempFileF5(null); setTempFileF6(null); }} className="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 px-4 py-2.5 rounded-lg flex items-center gap-2 transition shadow-sm font-medium">
+                                Ubah Data / Mode
+                            </button>
                         </div>
                     </div>
 
@@ -341,28 +391,19 @@
                     <div className="bg-white p-6 rounded-xl card-shadow mb-8">
                         <div className="flex items-center gap-2 mb-6 text-gray-800 font-bold text-lg border-b pb-3">
                             <div className="bg-gray-100 p-1.5 rounded-md"><IconFilter /></div>
-                            <span>Filter Data Interaktif</span>
+                            <span>Filter Data Interaktif {dashboardType === 'compare' && "(Berlaku untuk F5 & F6)"}</span>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                            
                             {/* Filter Provinsi */}
                             <div>
                                 <label className="block text-xs font-bold text-teal-700 mb-1.5 uppercase tracking-wide">Provinsi</label>
                                 <div className="relative">
-                                    <select 
-                                        className="w-full appearance-none bg-teal-50 border border-teal-200 text-teal-900 text-sm font-medium rounded-lg p-3 pr-8 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition cursor-pointer hover:bg-teal-100"
-                                        value={filterProv} 
-                                        onChange={(e) => {
-                                            setFilterProv(e.target.value);
-                                            setFilterKab("All"); // Reset Kabupaten saat Provinsi berubah
-                                        }}
-                                    >
+                                    <select className="w-full appearance-none bg-teal-50 border border-teal-200 text-teal-900 text-sm font-medium rounded-lg p-3 pr-8 focus:ring-2 focus:ring-teal-500 outline-none transition cursor-pointer"
+                                        value={filterProv} onChange={(e) => { setFilterProv(e.target.value); setFilterKab("All"); }}>
                                         <option value="All">Semua Provinsi</option>
                                         {uniqueProvinces.map(p => <option key={p} value={p}>{p}</option>)}
                                     </select>
-                                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-teal-600">
-                                        <IconChevronDown />
-                                    </div>
+                                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-teal-600"><IconChevronDown /></div>
                                 </div>
                             </div>
 
@@ -370,19 +411,12 @@
                             <div>
                                 <label className="block text-xs font-bold text-cyan-700 mb-1.5 uppercase tracking-wide">Kabupaten</label>
                                 <div className="relative">
-                                    <select 
-                                        className="w-full appearance-none bg-cyan-50 border border-cyan-200 text-cyan-900 text-sm font-medium rounded-lg p-3 pr-8 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none transition cursor-pointer hover:bg-cyan-100"
-                                        value={filterKab} 
-                                        onChange={(e) => {
-                                            setFilterKab(e.target.value);
-                                        }}
-                                    >
+                                    <select className="w-full appearance-none bg-cyan-50 border border-cyan-200 text-cyan-900 text-sm font-medium rounded-lg p-3 pr-8 focus:ring-2 focus:ring-cyan-500 outline-none transition cursor-pointer"
+                                        value={filterKab} onChange={(e) => setFilterKab(e.target.value)}>
                                         <option value="All">Semua Kabupaten</option>
                                         {uniqueKabupaten.map(p => <option key={p} value={p}>{p}</option>)}
                                     </select>
-                                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-cyan-600">
-                                        <IconChevronDown />
-                                    </div>
+                                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-cyan-600"><IconChevronDown /></div>
                                 </div>
                             </div>
 
@@ -390,17 +424,12 @@
                             <div>
                                 <label className="block text-xs font-bold text-amber-700 mb-1.5 uppercase tracking-wide">Produk</label>
                                 <div className="relative">
-                                    <select 
-                                        className="w-full appearance-none bg-amber-50 border border-amber-200 text-amber-900 text-sm font-medium rounded-lg p-3 pr-8 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition cursor-pointer hover:bg-amber-100"
-                                        value={filterProd} 
-                                        onChange={(e) => setFilterProd(e.target.value)}
-                                    >
+                                    <select className="w-full appearance-none bg-amber-50 border border-amber-200 text-amber-900 text-sm font-medium rounded-lg p-3 pr-8 focus:ring-2 focus:ring-amber-500 outline-none transition cursor-pointer"
+                                        value={filterProd} onChange={(e) => setFilterProd(e.target.value)}>
                                         <option value="All">Semua Produk</option>
                                         {uniqueProducts.map(p => <option key={p} value={p}>{p}</option>)}
                                     </select>
-                                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-amber-600">
-                                        <IconChevronDown />
-                                    </div>
+                                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-amber-600"><IconChevronDown /></div>
                                 </div>
                             </div>
 
@@ -408,73 +437,64 @@
                              <div>
                                 <label className="block text-xs font-bold text-indigo-700 mb-1.5 uppercase tracking-wide">Distributor</label>
                                 <div className="relative">
-                                    <select 
-                                        className="w-full appearance-none bg-indigo-50 border border-indigo-200 text-indigo-900 text-sm font-medium rounded-lg p-3 pr-8 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition cursor-pointer hover:bg-indigo-100"
-                                        value={filterDistributor} 
-                                        onChange={(e) => setFilterDistributor(e.target.value)}
-                                    >
+                                    <select className="w-full appearance-none bg-indigo-50 border border-indigo-200 text-indigo-900 text-sm font-medium rounded-lg p-3 pr-8 focus:ring-2 focus:ring-indigo-500 outline-none transition cursor-pointer"
+                                        value={filterDistributor} onChange={(e) => setFilterDistributor(e.target.value)}>
                                         <option value="All">Semua Distributor</option>
                                         {uniqueDistributors.map(d => <option key={d} value={d}>{d}</option>)}
                                     </select>
-                                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-indigo-600">
-                                        <IconChevronDown />
-                                    </div>
+                                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-indigo-600"><IconChevronDown /></div>
                                 </div>
                             </div>
-
                         </div>
                     </div>
 
                     {/* KPI Cards */}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                        {/* Card 1 */}
-                        <div className="bg-white p-6 rounded-xl card-shadow border-l-4 border-blue-500 transition hover:shadow-lg">
-                            <div className="flex justify-between items-start">
-                                <div>
+                        {dashboardType === 'single' ? (
+                            <>
+                                <div className="bg-white p-6 rounded-xl card-shadow border-l-4 border-blue-500">
                                     <p className="text-gray-500 text-sm font-medium">Total Penyaluran</p>
-                                    <h3 className="text-2xl font-bold text-gray-800 mt-1">{formatNumber(kpi.totalPenyaluran)} <span className="text-xs text-gray-400 font-normal">Ton</span></h3>
+                                    <h3 className="text-2xl font-bold text-gray-800 mt-1">{formatNumber(kpiSingle.totalPenyaluran)} <span className="text-xs text-gray-400 font-normal">Ton</span></h3>
                                 </div>
-                                <div className="p-2.5 bg-blue-50 rounded-lg text-blue-600">
-                                    <IconTruck />
-                                </div>
-                            </div>
-                        </div>
-                        {/* Card 2 */}
-                        <div className="bg-white p-6 rounded-xl card-shadow border-l-4 border-green-500 transition hover:shadow-lg">
-                            <div className="flex justify-between items-start">
-                                <div>
+                                <div className="bg-white p-6 rounded-xl card-shadow border-l-4 border-green-500">
                                     <p className="text-gray-500 text-sm font-medium">Total Penebusan</p>
-                                    <h3 className="text-2xl font-bold text-gray-800 mt-1">{formatNumber(kpi.totalPenebusan)} <span className="text-xs text-gray-400 font-normal">Ton</span></h3>
+                                    <h3 className="text-2xl font-bold text-gray-800 mt-1">{formatNumber(kpiSingle.totalPenebusan)} <span className="text-xs text-gray-400 font-normal">Ton</span></h3>
                                 </div>
-                                <div className="p-2.5 bg-green-50 rounded-lg text-green-600">
-                                    <IconBox />
-                                </div>
-                            </div>
-                        </div>
-                        {/* Card 3 */}
-                        <div className="bg-white p-6 rounded-xl card-shadow border-l-4 border-orange-500 transition hover:shadow-lg">
-                            <div className="flex justify-between items-start">
-                                <div>
+                                <div className="bg-white p-6 rounded-xl card-shadow border-l-4 border-orange-500">
                                     <p className="text-gray-500 text-sm font-medium">Rata-rata Stok Akhir</p>
-                                    <h3 className="text-2xl font-bold text-gray-800 mt-1">{formatNumber(kpi.avgStokAkhir)} <span className="text-xs text-gray-400 font-normal">Ton</span></h3>
+                                    <h3 className="text-2xl font-bold text-gray-800 mt-1">{formatNumber(kpiSingle.avgStokAkhir)} <span className="text-xs text-gray-400 font-normal">Ton</span></h3>
                                 </div>
-                                <div className="p-2.5 bg-orange-50 rounded-lg text-orange-600">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
-                                </div>
-                            </div>
-                        </div>
-                         {/* Card 4 */}
-                         <div className="bg-white p-6 rounded-xl card-shadow border-l-4 border-purple-500 transition hover:shadow-lg">
-                            <div className="flex justify-between items-start">
-                                <div>
+                                <div className="bg-white p-6 rounded-xl card-shadow border-l-4 border-purple-500">
                                     <p className="text-gray-500 text-sm font-medium">Distributor Aktif</p>
-                                    <h3 className="text-2xl font-bold text-gray-800 mt-1">{kpi.uniqueDistributors} <span className="text-xs text-gray-400 font-normal">Entitas</span></h3>
+                                    <h3 className="text-2xl font-bold text-gray-800 mt-1">{kpiSingle.uniqueDistributors} <span className="text-xs text-gray-400 font-normal">Entitas</span></h3>
                                 </div>
-                                <div className="p-2.5 bg-purple-50 rounded-lg text-purple-600">
-                                    <IconUsers />
+                            </>
+                        ) : (
+                            <>
+                                <div className="bg-white p-5 rounded-xl card-shadow border-l-4 border-blue-500">
+                                    <p className="text-gray-500 text-sm font-medium mb-2">Perbandingan Penyaluran</p>
+                                    <div className="flex justify-between items-end border-b pb-2 mb-2"><span className="text-xs font-bold text-gray-400">F5:</span> <span className="font-bold text-gray-800">{formatNumber(kpiCompare.F5_Penyaluran)} Ton</span></div>
+                                    <div className="flex justify-between items-end"><span className="text-xs font-bold text-fuchsia-400">F6:</span> <span className="font-bold text-fuchsia-700">{formatNumber(kpiCompare.F6_Penyaluran)} Ton</span></div>
                                 </div>
-                            </div>
-                        </div>
+                                <div className="bg-white p-5 rounded-xl card-shadow border-l-4 border-green-500">
+                                    <p className="text-gray-500 text-sm font-medium mb-2">Perbandingan Penebusan</p>
+                                    <div className="flex justify-between items-end border-b pb-2 mb-2"><span className="text-xs font-bold text-gray-400">F5:</span> <span className="font-bold text-gray-800">{formatNumber(kpiCompare.F5_Penebusan)} Ton</span></div>
+                                    <div className="flex justify-between items-end"><span className="text-xs font-bold text-fuchsia-400">F6:</span> <span className="font-bold text-fuchsia-700">{formatNumber(kpiCompare.F6_Penebusan)} Ton</span></div>
+                                </div>
+                                <div className="bg-white p-5 rounded-xl card-shadow border-l-4 border-red-500">
+                                    <p className="text-gray-500 text-sm font-medium mb-2">Selisih Penyaluran (F5 - F6)</p>
+                                    <h3 className={`text-2xl font-bold mt-1 ${kpiCompare.F5_Penyaluran - kpiCompare.F6_Penyaluran >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                                        {formatNumber(kpiCompare.F5_Penyaluran - kpiCompare.F6_Penyaluran)} <span className="text-xs text-gray-400 font-normal">Ton</span>
+                                    </h3>
+                                </div>
+                                <div className="bg-white p-5 rounded-xl card-shadow border-l-4 border-red-500">
+                                    <p className="text-gray-500 text-sm font-medium mb-2">Selisih Penebusan (F5 - F6)</p>
+                                    <h3 className={`text-2xl font-bold mt-1 ${kpiCompare.F5_Penebusan - kpiCompare.F6_Penebusan >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                                        {formatNumber(kpiCompare.F5_Penebusan - kpiCompare.F6_Penebusan)} <span className="text-xs text-gray-400 font-normal">Ton</span>
+                                    </h3>
+                                </div>
+                            </>
+                        )}
                     </div>
 
                     {/* Charts Section 1: Trend & Product Mix */}
@@ -483,62 +503,65 @@
                         <div className="bg-white p-6 rounded-xl card-shadow lg:col-span-2">
                             <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
                                 <span className="w-1 h-6 bg-blue-500 rounded-full"></span>
-                                Tren Penebusan vs Penyaluran
+                                {dashboardType === 'single' ? 'Tren Penebusan vs Penyaluran' : 'Perbandingan Penyaluran F5 vs F6 per Bulan'}
                             </h3>
                             <div className="h-80 w-full">
                                 <ResponsiveContainer width="100%" height="100%">
-                                    <AreaChart data={trendData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                                        <defs>
-                                            <linearGradient id="colorPenebusan" x1="0" y1="0" x2="0" y2="1">
-                                                <stop offset="5%" stopColor="#82ca9d" stopOpacity={0.8}/>
-                                                <stop offset="95%" stopColor="#82ca9d" stopOpacity={0}/>
-                                            </linearGradient>
-                                            <linearGradient id="colorPenyaluran" x1="0" y1="0" x2="0" y2="1">
-                                                <stop offset="5%" stopColor="#0088FE" stopOpacity={0.8}/>
-                                                <stop offset="95%" stopColor="#0088FE" stopOpacity={0}/>
-                                            </linearGradient>
-                                        </defs>
-                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb"/>
-                                        <XAxis dataKey="name" axisLine={false} tickLine={false} dy={10} style={{ fontSize: '12px', fill: '#6b7280' }}/>
-                                        <YAxis tickFormatter={formatYAxis} axisLine={false} tickLine={false} dx={-10} style={{ fontSize: '12px', fill: '#6b7280' }}/>
-                                        <Tooltip 
-                                            formatter={(value) => new Intl.NumberFormat('id-ID', { maximumFractionDigits: 2 }).format(value)} 
-                                            contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
-                                        />
-                                        <Legend wrapperStyle={{ paddingTop: '20px' }}/>
-                                        <Area type="monotone" dataKey="Penebusan" stroke="#82ca9d" strokeWidth={2} fillOpacity={1} fill="url(#colorPenebusan)" />
-                                        <Area type="monotone" dataKey="Penyaluran" stroke="#0088FE" strokeWidth={2} fillOpacity={1} fill="url(#colorPenyaluran)" />
-                                    </AreaChart>
+                                    {dashboardType === 'single' ? (
+                                        <AreaChart data={trendData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                                            <defs>
+                                                <linearGradient id="colorPenebusan" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#82ca9d" stopOpacity={0.8}/><stop offset="95%" stopColor="#82ca9d" stopOpacity={0}/></linearGradient>
+                                                <linearGradient id="colorPenyaluran" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#0088FE" stopOpacity={0.8}/><stop offset="95%" stopColor="#0088FE" stopOpacity={0}/></linearGradient>
+                                            </defs>
+                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb"/>
+                                            <XAxis dataKey="name" axisLine={false} tickLine={false} dy={10} style={{ fontSize: '12px', fill: '#6b7280' }}/>
+                                            <YAxis tickFormatter={formatYAxis} axisLine={false} tickLine={false} dx={-10} style={{ fontSize: '12px', fill: '#6b7280' }}/>
+                                            <Tooltip formatter={(value) => new Intl.NumberFormat('id-ID', { maximumFractionDigits: 2 }).format(value)} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}/>
+                                            <Legend wrapperStyle={{ paddingTop: '20px' }}/>
+                                            <Area type="monotone" dataKey="Penebusan" stroke="#82ca9d" strokeWidth={2} fillOpacity={1} fill="url(#colorPenebusan)" />
+                                            <Area type="monotone" dataKey="Penyaluran" stroke="#0088FE" strokeWidth={2} fillOpacity={1} fill="url(#colorPenyaluran)" />
+                                        </AreaChart>
+                                    ) : (
+                                        <BarChart data={trendData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb"/>
+                                            <XAxis dataKey="name" axisLine={false} tickLine={false} dy={10} style={{ fontSize: '12px', fill: '#6b7280' }}/>
+                                            <YAxis tickFormatter={formatYAxis} axisLine={false} tickLine={false} dx={-10} style={{ fontSize: '12px', fill: '#6b7280' }}/>
+                                            <Tooltip formatter={(value) => new Intl.NumberFormat('id-ID', { maximumFractionDigits: 2 }).format(value) + ' Ton'} cursor={{fill: 'transparent'}} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}/>
+                                            <Legend wrapperStyle={{ paddingTop: '20px' }}/>
+                                            <Bar dataKey="F5_Penyaluran" name="F5 Penyaluran" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                                            <Bar dataKey="F6_Penyaluran" name="F6 Penyaluran" fill="#d946ef" radius={[4, 4, 0, 0]} />
+                                        </BarChart>
+                                    )}
                                 </ResponsiveContainer>
                             </div>
                         </div>
 
-                        {/* Product Pie Chart */}
+                        {/* Product Chart */}
                         <div className="bg-white p-6 rounded-xl card-shadow">
                              <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
                                 <span className="w-1 h-6 bg-amber-500 rounded-full"></span>
-                                Komposisi Produk
+                                {dashboardType === 'single' ? 'Komposisi Produk' : 'Penyaluran Produk (F5 vs F6)'}
                             </h3>
                             <div className="h-80 w-full">
                                 <ResponsiveContainer width="100%" height="100%">
-                                    <PieChart>
-                                        <Pie
-                                            data={productData}
-                                            cx="50%"
-                                            cy="50%"
-                                            innerRadius={60}
-                                            outerRadius={100}
-                                            fill="#8884d8"
-                                            paddingAngle={5}
-                                            dataKey="value"
-                                            label={({name, percent}) => `${name} ${(percent * 100).toFixed(0)}%`}
-                                        >
-                                            {productData.map((entry, index) => (
-                                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                            ))}
-                                        </Pie>
-                                        <Tooltip formatter={(value) => new Intl.NumberFormat('id-ID', { maximumFractionDigits: 2 }).format(value)} />
-                                    </PieChart>
+                                    {dashboardType === 'single' ? (
+                                        <PieChart>
+                                            <Pie data={productData} cx="50%" cy="50%" innerRadius={60} outerRadius={100} fill="#8884d8" paddingAngle={5} dataKey="value" label={({name, percent}) => `${name} ${(percent * 100).toFixed(0)}%`}>
+                                                {productData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
+                                            </Pie>
+                                            <Tooltip formatter={(value) => new Intl.NumberFormat('id-ID', { maximumFractionDigits: 2 }).format(value)} />
+                                        </PieChart>
+                                    ) : (
+                                        <BarChart data={productData} layout="vertical" margin={{ top: 0, right: 30, left: 30, bottom: 0 }}>
+                                            <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e5e7eb"/>
+                                            <XAxis type="number" tickFormatter={formatYAxis} axisLine={false} tickLine={false} style={{ fontSize: '12px', fill: '#6b7280' }}/>
+                                            <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} style={{ fontSize: '12px', fill: '#374151', fontWeight: 'bold' }}/>
+                                            <Tooltip formatter={(value) => new Intl.NumberFormat('id-ID', { maximumFractionDigits: 2 }).format(value) + ' Ton'} cursor={{fill: '#f3f4f6'}} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}/>
+                                            <Legend wrapperStyle={{ paddingTop: '10px' }}/>
+                                            <Bar dataKey="F5_Value" name="F5" fill="#3b82f6" radius={[0, 4, 4, 0]} barSize={15} />
+                                            <Bar dataKey="F6_Value" name="F6" fill="#d946ef" radius={[0, 4, 4, 0]} barSize={15} />
+                                        </BarChart>
+                                    )}
                                 </ResponsiveContainer>
                             </div>
                         </div>
@@ -556,25 +579,19 @@
                                 {/* Filter Toggle untuk Wilayah */}
                                 <select 
                                     className="text-xs border border-gray-300 rounded-lg px-2 py-1 bg-gray-50 text-gray-600 focus:outline-none focus:border-indigo-500 font-medium cursor-pointer"
-                                    value={metricWilayah}
-                                    onChange={(e) => setMetricWilayah(e.target.value)}
+                                    value={metricWilayah} onChange={(e) => setMetricWilayah(e.target.value)}
                                 >
                                     <option value="Penyaluran">Penyaluran</option>
                                     <option value="Penebusan">Penebusan</option>
                                 </select>
                             </div>
-
                             <div className="flex-grow overflow-y-auto custom-scrollbar pr-2 max-h-80">
-                                {wilayahData.length === 0 ? (
-                                    <div className="text-center text-gray-400 py-10">Tidak ada data</div>
-                                ) : (
+                                {wilayahData.length === 0 ? <div className="text-center text-gray-400 py-10">Tidak ada data</div> : (
                                     <ul className="space-y-3">
                                         {wilayahData.map((item, index) => (
                                             <li key={index} className="flex items-center justify-between p-3 rounded-lg bg-indigo-50/50 hover:bg-indigo-50 transition">
                                                 <div className="flex items-center gap-3">
-                                                    <span className={`flex justify-center items-center w-6 h-6 rounded-full text-xs font-bold ${index < 3 ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-600'}`}>
-                                                        {index + 1}
-                                                    </span>
+                                                    <span className={`flex justify-center items-center w-6 h-6 rounded-full text-xs font-bold ${index < 3 ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-600'}`}>{index + 1}</span>
                                                     <span className="font-medium text-gray-700">{item.name}</span>
                                                 </div>
                                                 <div className="text-right">
@@ -598,25 +615,19 @@
                                 {/* Filter Toggle untuk Distributor */}
                                 <select 
                                     className="text-xs border border-gray-300 rounded-lg px-2 py-1 bg-gray-50 text-gray-600 focus:outline-none focus:border-emerald-500 font-medium cursor-pointer"
-                                    value={metricDistributor}
-                                    onChange={(e) => setMetricDistributor(e.target.value)}
+                                    value={metricDistributor} onChange={(e) => setMetricDistributor(e.target.value)}
                                 >
                                     <option value="Penyaluran">Penyaluran</option>
                                     <option value="Penebusan">Penebusan</option>
                                 </select>
                             </div>
-
                             <div className="flex-grow overflow-y-auto custom-scrollbar pr-2 max-h-80">
-                                {distributorData.length === 0 ? (
-                                    <div className="text-center text-gray-400 py-10">Tidak ada data</div>
-                                ) : (
+                                {distributorData.length === 0 ? <div className="text-center text-gray-400 py-10">Tidak ada data</div> : (
                                     <ul className="space-y-3">
                                         {distributorData.map((item, index) => (
                                             <li key={index} className="flex items-center justify-between p-3 rounded-lg bg-emerald-50/50 hover:bg-emerald-50 transition">
                                                 <div className="flex items-center gap-3">
-                                                    <span className={`flex justify-center items-center w-6 h-6 rounded-full text-xs font-bold ${index < 3 ? 'bg-emerald-600 text-white' : 'bg-gray-200 text-gray-600'}`}>
-                                                        {index + 1}
-                                                    </span>
+                                                    <span className={`flex justify-center items-center w-6 h-6 rounded-full text-xs font-bold ${index < 3 ? 'bg-emerald-600 text-white' : 'bg-gray-200 text-gray-600'}`}>{index + 1}</span>
                                                     <span className="font-medium text-gray-700 truncate max-w-[200px]" title={item.name}>{item.name}</span>
                                                 </div>
                                                 <div className="text-right">
